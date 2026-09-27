@@ -4,6 +4,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+import urllib.parse
 import time
 from pathlib import Path
 from typing import Any
@@ -176,8 +177,8 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
 
     primary_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
     fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash").strip()
-    timeout = max(8, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "30")))
-    attempts = max(1, int(os.getenv("GEMINI_RETRY_COUNT", "3")))
+    timeout = min(18, max(8, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "18"))))
+    attempts = min(2, max(1, int(os.getenv("GEMINI_RETRY_COUNT", "2"))))
     max_output_tokens = max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")))
     thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "high").strip().lower()
     if thinking_level not in {"low", "medium", "high"}:
@@ -204,12 +205,12 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
     }
 
     def request_model(model: str):
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={urllib.parse.quote(api_key, safe='')}"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         payload = json.dumps(payload_obj).encode("utf-8")
         req = urllib.request.Request(
             endpoint,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -411,8 +412,8 @@ def ai_diagnostic():
     model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
     payload = json.dumps({"contents": [{"role": "user", "parts": [{"text": "Balas hanya: OK"}]}],
                           "generationConfig": {"maxOutputTokens": 16}}).encode("utf-8")
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={urllib.parse.quote(key, safe='')}"
-    req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json", "x-goog-api-key": key}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
@@ -459,21 +460,29 @@ def api_chat():
         )
     context_text = "\n\n".join(context_chunks) or "Tidak ada konteks lokal yang cocok."
 
-    expert_answer, ai_error = call_gemini_expert(question, history, context_text)
-    if expert_answer:
-        answer, mode = expert_answer, "expert"
-    else:
-        answer, mode = build_local_expert_answer(question, knowledge_result, template), "local"
+    try:
+        expert_answer, ai_error = call_gemini_expert(question, history, context_text)
+        if expert_answer:
+            answer, mode = expert_answer, "expert"
+        else:
+            answer, mode = build_local_expert_answer(question, knowledge_result, template), "local"
 
-    return jsonify({
-        "success": True,
-        "answer": answer,
-        "found": knowledge_result["found"],
-        "score": knowledge_result["score"],
-        "mode": mode,
-        "workflow": ({"name": template.get("name"), "widgets": template.get("widgets", [])} if template else None),
-        "ai_error": ai_error if mode == "local" else None,
-    })
+        return jsonify({
+            "success": True,
+            "answer": answer,
+            "found": knowledge_result["found"],
+            "score": knowledge_result["score"],
+            "mode": mode,
+            "workflow": ({"name": template.get("name"), "widgets": template.get("widgets", [])} if template else None),
+            "ai_error": ai_error if mode == "local" else None,
+        })
+    except Exception as exc:
+        return jsonify({
+            "success": False,
+            "answer": "Terjadi kesalahan pada layanan AI.",
+            "error_code": "CHAT_BACKEND_ERROR",
+            "message": str(exc)[:500],
+        }), 500
 
 
 @app.route("/latihan")
