@@ -171,32 +171,42 @@ def _gemini_contents(history: list[dict], question: str) -> list[dict]:
 
 
 def call_gemini_expert(question: str, history: list[dict], context_text: str) -> tuple[str | None, str | None]:
+    """Fast, resilient Gemini call with model failover and no long retry waits."""
     api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
     if not _valid_gemini_key(api_key):
         return None, "GEMINI_API_KEY belum valid atau belum dipasang di Vercel."
 
-    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
-    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash").strip()
-    timeout = min(18, max(8, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "18"))))
-    attempts = min(2, max(1, int(os.getenv("GEMINI_RETRY_COUNT", "2"))))
-    max_output_tokens = max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")))
-    thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "high").strip().lower()
-    if thinking_level not in {"low", "medium", "high"}:
-        thinking_level = "high"
+    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    fallback_raw = os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash,gemini-3.5-flash"),
+    )
+    fallback_models = [m.strip() for m in fallback_raw.split(",") if m.strip()]
+    models_to_try = []
+    for model in [primary_model, *fallback_models]:
+        if model and model not in models_to_try:
+            models_to_try.append(model)
+
+    # Keep interactive chat fast. The server falls back to Local AI rather than
+    # holding the browser for a long sequence of retries.
+    timeout = min(6, max(4, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "5"))))
+    max_output_tokens = min(3072, max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "2200"))))
+    temperature = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))
+    temperature = min(1.0, max(0.0, temperature))
 
     system_instruction = (
         EXPERT_SYSTEM_PROMPT
         + "\n\nKonteks Orange Learn yang relevan:\n"
-        + context_text[:24000]
+        + context_text[:18000]
         + "\n\nKamu adalah tutor ahli, bukan sekadar generator jawaban. "
           "Saat menganalisis workflow, jelaskan struktur data, tipe kolom, target/class, "
-          "hubungan input-output widget, potensi data leakage, validasi, dan cara membaca hasil."
+          "hubungan input-output widget, potensi data leakage, validasi, dan cara membaca hasil. "
+          "Prioritaskan jawaban yang langsung bisa dipraktikkan di Orange Data Mining."
     )
-    generation_config = {"maxOutputTokens": max_output_tokens}
-    # Thinking can be enabled for models that support it. Keep it optional so
-    # free-tier projects and older model configurations remain compatible.
-    if os.getenv("GEMINI_ENABLE_THINKING", "false").strip().lower() in {"1", "true", "yes", "on"}:
-        generation_config["thinkingConfig"] = {"thinkingLevel": thinking_level}
+    generation_config = {
+        "maxOutputTokens": max_output_tokens,
+        "temperature": temperature,
+    }
 
     payload_obj = {
         "systemInstruction": {"parts": [{"text": system_instruction}]},
@@ -216,51 +226,52 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
 
-    models_to_try = [primary_model]
-    if fallback_model and fallback_model != primary_model:
-        models_to_try.append(fallback_model)
+    last_error = "Gemini sedang tidak tersedia."
+    for index, model in enumerate(models_to_try):
+        try:
+            data = request_model(model)
+            candidates = data.get("candidates") or []
+            if not candidates:
+                feedback = data.get("promptFeedback") or {}
+                reason = feedback.get("blockReason") or "tidak ada kandidat respons"
+                return None, f"Gemini tidak mengembalikan jawaban ({reason})."
 
-    last_error = "Gemini request gagal."
-    for model_index, model in enumerate(models_to_try):
-        for attempt in range(attempts):
+            parts = ((candidates[0].get("content") or {}).get("parts") or [])
+            texts = [
+                str(part.get("text", "")).strip()
+                for part in parts
+                if str(part.get("text", "")).strip()
+            ]
+            answer = "\n\n".join(texts).strip()
+            if not answer:
+                finish_reason = candidates[0].get("finishReason", "UNKNOWN")
+                return None, f"Gemini tidak menghasilkan teks ({finish_reason})."
+            return answer, None
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
             try:
-                data = request_model(model)
-                candidates = data.get("candidates") or []
-                if not candidates:
-                    feedback = data.get("promptFeedback") or {}
-                    reason = feedback.get("blockReason") or "tidak ada kandidat respons"
-                    return None, f"Gemini tidak mengembalikan jawaban ({reason})."
+                parsed = json.loads(body)
+                err = parsed.get("error", {}) if isinstance(parsed, dict) else {}
+                detail = err.get("message", body)
+            except json.JSONDecodeError:
+                detail = body[:500]
+            last_error = f"Gemini HTTP {exc.code}: {detail}"
 
-                parts = ((candidates[0].get("content") or {}).get("parts") or [])
-                texts = [str(part.get("text", "")).strip() for part in parts if str(part.get("text", "")).strip()]
-                answer = "\n\n".join(texts).strip()
-                if not answer:
-                    finish_reason = candidates[0].get("finishReason", "UNKNOWN")
-                    return None, f"Gemini tidak menghasilkan teks (finish reason: {finish_reason})."
-                return answer, None
-            except urllib.error.HTTPError as exc:
-                body = exc.read().decode("utf-8", errors="replace")
-                try:
-                    parsed = json.loads(body)
-                    detail = parsed.get("error", {}).get("message", body)
-                except json.JSONDecodeError:
-                    detail = body[:700]
-                last_error = f"Gemini HTTP {exc.code}: {detail}"
-                # Model fallback is useful for unavailable/invalid model errors, not quota exhaustion.
-                if exc.code in {400, 404} and model_index + 1 < len(models_to_try):
-                    break
-                if exc.code not in {408, 409, 429, 500, 502, 503, 504} or attempt == attempts - 1:
-                    return None, last_error
-                time.sleep(min(8, 1.5 * (attempt + 1)))
-            except (urllib.error.URLError, TimeoutError) as exc:
-                last_error = f"Koneksi Gemini gagal: {exc}"
-                if attempt == attempts - 1:
-                    return None, last_error
-                time.sleep(min(8, 1.5 * (attempt + 1)))
-            except json.JSONDecodeError as exc:
-                return None, f"Respons Gemini tidak valid: {exc}"
-            except Exception as exc:
-                return None, f"Kesalahan Gemini: {exc}"
+            # 400/404 can be model/config specific: move immediately to another model.
+            # 401/403/402 indicate configuration/account issues: don't waste latency retrying.
+            # 429/5xx are transient: fail over immediately; avoid long browser waits.
+            if exc.code in {400, 404, 408, 409, 429, 500, 502, 503, 504} and index + 1 < len(models_to_try):
+                continue
+            return None, last_error
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_error = f"Koneksi Gemini gagal: {exc}"
+            if index + 1 < len(models_to_try):
+                continue
+            return None, last_error
+        except json.JSONDecodeError as exc:
+            return None, f"Respons Gemini tidak valid: {exc}"
+        except Exception as exc:
+            return None, f"Kesalahan Gemini: {exc}"
 
     return None, last_error
 
@@ -394,48 +405,14 @@ def ai_status():
         "success": True,
         "expert_mode": enabled,
         "provider": "Google Gemini API" if enabled else "Local Knowledge Base",
-        "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash") if enabled else "local-expert",
+        "configured": enabled,
+        "model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite") if enabled else "local-expert",
         "thinking_level": os.getenv("GEMINI_THINKING_LEVEL", "high") if enabled else None,
         "web_search": False,
         "knowledge_items": len(load_orange_knowledge()),
         "workflow_templates": len(load_workflow_templates()),
     })
 
-
-@app.route("/api/ai-diagnostic")
-def ai_diagnostic():
-    """Small, safe health check for the Gemini integration. Never returns the API key."""
-    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
-    if not _valid_gemini_key(key):
-        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
-                        "message": "GEMINI_API_KEY belum dipasang atau tidak valid."}), 503
-    model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
-    payload = json.dumps({"contents": [{"role": "user", "parts": [{"text": "Balas hanya: OK"}]}],
-                          "generationConfig": {"maxOutputTokens": 16}}).encode("utf-8")
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json", "x-goog-api-key": key}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        text_value = ""
-        for part in ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
-            if part.get("text"):
-                text_value += str(part["text"])
-        return jsonify({"success": True, "connected": True, "provider": "Google Gemini API",
-                        "model": model, "response": text_value.strip()[:20]})
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        try:
-            parsed = json.loads(body)
-            detail = parsed.get("error", {}).get("message", body)
-            status = parsed.get("error", {}).get("status")
-        except json.JSONDecodeError:
-            detail, status = body[:500], None
-        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
-                        "model": model, "http_status": exc.code, "status": status, "message": detail}), 502
-    except Exception as exc:
-        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
-                        "model": model, "message": str(exc)[:500]}), 502
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -474,7 +451,9 @@ def api_chat():
             "score": knowledge_result["score"],
             "mode": mode,
             "workflow": ({"name": template.get("name"), "widgets": template.get("widgets", [])} if template else None),
-            "ai_error": ai_error if mode == "local" else None,
+            "ai_error": None,
+            "degraded": mode == "local" and bool(ai_error),
+            "degraded_reason": "provider_unavailable" if mode == "local" and ai_error else None,
         })
     except Exception as exc:
         return jsonify({
