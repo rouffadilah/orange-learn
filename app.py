@@ -4,6 +4,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+import time
 from pathlib import Path
 from typing import Any
 
@@ -135,24 +136,50 @@ def build_local_expert_answer(question: str, knowledge_result: dict, template: d
     return "\n".join(parts)
 
 
-def call_openai_expert(question: str, history: list[dict], context_text: str) -> str | None:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
+def _valid_openai_key(value: str | None) -> bool:
+    if not value:
+        return False
+    value = value.strip()
+    return value.startswith("sk-") and len(value) > 20
 
-    model = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
+
+def call_openai_expert(question: str, history: list[dict], context_text: str) -> tuple[str | None, str | None]:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not _valid_openai_key(api_key):
+        return None, "OPENAI_API_KEY belum valid atau belum dipasang."
+
+    model = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
     endpoint = os.getenv("OPENAI_RESPONSES_URL", "https://api.openai.com/v1/responses")
-    prompt = (
-        f"Konteks knowledge base orange-learn:\n{context_text}\n\n"
-        f"Riwayat percakapan singkat:\n{json.dumps(history[-8:], ensure_ascii=False)}\n\n"
-        f"Pertanyaan pengguna:\n{question}"
-    )
-    payload = json.dumps({
+    clean_history = []
+    for item in history[-10:]:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        content = str(item.get("content", "")).strip()
+        if role in {"user", "assistant"} and content:
+            clean_history.append({"role": role, "content": content[:6000]})
+
+    input_messages = [
+        {"role": "developer", "content": EXPERT_SYSTEM_PROMPT},
+        *clean_history,
+        {
+            "role": "user",
+            "content": (
+                "Gunakan konteks lokal berikut bila relevan. Jangan mengarang hasil eksperimen. "
+                "Jika konteks tidak cukup, jelaskan asumsi yang diperlukan.\n\n"
+                f"KONTEKS ORANGE-LEARN:\n{context_text[:18000]}\n\n"
+                f"PERTANYAAN:\n{question}"
+            ),
+        },
+    ]
+    payload_obj = {
         "model": model,
-        "instructions": EXPERT_SYSTEM_PROMPT,
-        "input": prompt,
-        "max_output_tokens": 1400,
-    }).encode("utf-8")
+        "input": input_messages,
+        "max_output_tokens": int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2200")),
+    }
+    if os.getenv("OPENAI_WEB_SEARCH", "true").lower() == "true":
+        payload_obj["tools"] = [{"type": "web_search"}]
+    payload = json.dumps(payload_obj).encode("utf-8")
     req = urllib.request.Request(
         endpoint,
         data=payload,
@@ -160,11 +187,35 @@ def call_openai_expert(question: str, history: list[dict], context_text: str) ->
         method="POST",
     )
     try:
-        timeout = max(5, int(os.getenv("OPENAI_TIMEOUT_SECONDS", "20")))
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
-        return None
+        timeout = max(8, int(os.getenv("OPENAI_TIMEOUT_SECONDS", "45")))
+        attempts = max(1, int(os.getenv("OPENAI_RETRY_COUNT", "2")))
+        last_error = "OpenAI request gagal."
+        for attempt in range(attempts):
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="replace")
+                try:
+                    detail = json.loads(body).get("error", {}).get("message", body)
+                except json.JSONDecodeError:
+                    detail = body[:500]
+                last_error = f"OpenAI HTTP {exc.code}: {detail}"
+                if exc.code not in {408, 409, 429, 500, 502, 503, 504} or attempt == attempts - 1:
+                    return None, last_error
+                time.sleep(1.5 * (attempt + 1))
+            except (urllib.error.URLError, TimeoutError) as exc:
+                last_error = f"Koneksi OpenAI gagal: {exc}"
+                if attempt == attempts - 1:
+                    return None, last_error
+                time.sleep(1.5 * (attempt + 1))
+            except json.JSONDecodeError as exc:
+                return None, f"Respons OpenAI tidak valid: {exc}"
+        else:
+            return None, last_error
+    except Exception as exc:
+        return None, f"Kesalahan AI: {exc}"
 
     if isinstance(data.get("output_text"), str) and data["output_text"].strip():
         return data["output_text"].strip()
@@ -175,7 +226,7 @@ def call_openai_expert(question: str, history: list[dict], context_text: str) ->
             text_value = content.get("text")
             if isinstance(text_value, str) and text_value.strip():
                 texts.append(text_value.strip())
-    return "\n\n".join(texts).strip() or None
+    return "\n\n".join(texts).strip() or None, None
 
 
 def fetch_rows(table: str, order_column: str = "urutan") -> list[dict[str, Any]]:
@@ -302,12 +353,16 @@ def materi_detail(id):
 
 @app.route("/api/ai-status")
 def ai_status():
-    enabled = bool(os.getenv("OPENAI_API_KEY"))
+    key = os.getenv("OPENAI_API_KEY", "")
+    enabled = _valid_openai_key(key)
     return jsonify({
         "success": True,
         "expert_mode": enabled,
         "provider": "OpenAI Responses API" if enabled else "Local Knowledge Base",
-        "model": os.getenv("OPENAI_MODEL", "gpt-5.6-luna") if enabled else "local-expert",
+        "model": os.getenv("OPENAI_MODEL", "gpt-5.6-sol") if enabled else "local-expert",
+        "web_search": enabled and os.getenv("OPENAI_WEB_SEARCH", "true").lower() == "true",
+        "knowledge_items": len(load_orange_knowledge()),
+        "workflow_templates": len(load_workflow_templates()),
     })
 
 
@@ -334,7 +389,7 @@ def api_chat():
         )
     context_text = "\n\n".join(context_chunks) or "Tidak ada konteks lokal yang cocok."
 
-    expert_answer = call_openai_expert(question, history, context_text)
+    expert_answer, ai_error = call_openai_expert(question, history, context_text)
     if expert_answer:
         answer, mode = expert_answer, "expert"
     else:
@@ -347,6 +402,7 @@ def api_chat():
         "score": knowledge_result["score"],
         "mode": mode,
         "workflow": ({"name": template.get("name"), "widgets": template.get("widgets", [])} if template else None),
+        "ai_error": ai_error if mode == "local" else None,
     })
 
 

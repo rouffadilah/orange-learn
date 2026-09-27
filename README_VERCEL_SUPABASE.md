@@ -50,9 +50,12 @@ The original SQLite database was used only to generate the migration SQL and is 
 Tambahkan Environment Variables di project Vercel:
 
 - `OPENAI_API_KEY` = API key OpenAI Anda
-- `OPENAI_MODEL` = `gpt-5.6-luna` (atau model yang tersedia di akun Anda)
+- `OPENAI_MODEL` = `gpt-5.6-sol` (model reasoning utama; ganti jika model ini tidak tersedia di akun Anda)
+- `OPENAI_WEB_SEARCH` = `true`
+- `OPENAI_MAX_OUTPUT_TOKENS` = `2200`
+- `OPENAI_RETRY_COUNT` = `2`
 - `OPENAI_RESPONSES_URL` = `https://api.openai.com/v1/responses`
-- `OPENAI_TIMEOUT_SECONDS` = `20`
+- `OPENAI_TIMEOUT_SECONDS` = `25`
 
 Setelah menambahkan variable, lakukan redeploy agar AI Tutor berpindah dari `Local Knowledge Mode` ke `Expert AI`.
 
