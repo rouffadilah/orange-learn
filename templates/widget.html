@@ -69,12 +69,12 @@
                     {% for item in kategori_data %}
 
                     <option
-                        value="{{ item['kategori'] }}"
+                        value="{{ item['kategori']|clean }}"
                         {% if kategori == item['kategori'] %}
                             selected
                         {% endif %}
                     >
-                        {{ item['kategori'] }}
+                        {{ item['kategori']|clean }}
                     </option>
 
                     {% endfor %}
@@ -120,7 +120,7 @@
                         </div>
 
                         <span class="widget-level">
-                            {{ item["tingkat"] }}
+                            {{ item["tingkat"]|clean }}
                         </span>
 
                     </div>
@@ -128,18 +128,18 @@
 
                     <div class="widget-category">
 
-                        {{ item["kategori"] }}
+                        {{ item["kategori"]|clean }}
 
                     </div>
 
 
                     <h3>
-                        {{ item["nama"] }}
+                        {{ item["nama"]|clean }}
                     </h3>
 
 
                     <p>
-                        {{ item["deskripsi"] }}
+                        {{ item["deskripsi"]|clean }}
                     </p>
 
 
@@ -149,7 +149,7 @@
                             Fungsi:
                         </strong>
 
-                        {{ item["fungsi"] }}
+                        {{ item["fungsi"]|clean }}
 
                     </div>
 

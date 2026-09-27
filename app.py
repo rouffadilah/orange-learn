@@ -159,6 +159,63 @@ def clean_ai_output(text: str) -> str:
     return value.strip()
 
 
+def clean_display_text(text: str) -> str:
+    """Clean Markdown/LaTeX artifacts for browser-facing educational content."""
+    value = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    # TeX-style arrows and relations.
+    replacements = {
+        r"\longrightarrow": "→", r"\rightarrow": "→", r"\to": "→",
+        r"\Rightarrow": "⇒", r"\Longrightarrow": "⇒", r"\leftarrow": "←",
+        r"\leftrightarrow": "↔", r"\geq": "≥", r"\leq": "≤",
+        r"\times": "×", r"\cdot": "·", r"\pm": "±", r"\neq": "≠",
+    }
+    for src, dst in replacements.items():
+        value = value.replace(src, dst)
+    # Remove common wrappers repeatedly, including simple nested braces.
+    for _ in range(4):
+        value = re.sub(r"\\(?:text|mathrm|mathbf|operatorname|textrm|textit)\s*\{([^{}]*)\}", r"\1", value)
+    value = re.sub(r"\$\$(.*?)\$\$", r"\1", value, flags=re.S)
+    value = re.sub(r"\$(.*?)\$", r"\1", value, flags=re.S)
+    value = re.sub(r"\\\((.*?)\\\)", r"\1", value, flags=re.S)
+    value = re.sub(r"\\\[(.*?)\\\]", r"\1", value, flags=re.S)
+    value = value.replace(r"\left", "").replace(r"\right", "")
+    value = value.replace(r"\{", "{").replace(r"\}", "}")
+    # Markdown headings -> plain headings; bullets -> readable bullets.
+    cleaned_lines = []
+    for raw in value.split("\n"):
+        line = raw.strip()
+        if not line:
+            cleaned_lines.append("")
+            continue
+        if re.fullmatch(r"(?:---+|___+|===+)", line):
+            continue
+        if re.fullmatch(r"\*+", line):
+            continue
+        line = re.sub(r"^#{1,6}\s+", "", line)
+        line = re.sub(r"^[*•]\s+", "• ", line)
+        # Remove isolated ordered-list markers that were generated on their own line.
+        if re.fullmatch(r"\d+[.)]", line):
+            continue
+        # Markdown link -> label.
+        line = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", line)
+        # Remove emphasis/code markers while retaining the actual text.
+        line = line.replace("**", "").replace("__", "")
+        line = re.sub(r"(^|\s)\*([^*]+)\*(?=\s|$)", r"\1\2", line)
+        line = re.sub(r"`([^`]+)`", r"\1", line)
+        line = re.sub(r"\\\\+", " ", line)
+        line = re.sub(r"[ \t]{2,}", " ", line)
+        line = line.replace("{", "").replace("}", "")
+        cleaned_lines.append(line)
+    value = "\n".join(cleaned_lines)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
+
+
+@app.template_filter("clean")
+def clean_template_text(value):
+    return clean_display_text(value)
+
+
 def build_local_expert_answer(question: str, knowledge_result: dict, template: dict | None):
     parts = []
     if knowledge_result["found"]:
@@ -221,7 +278,7 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
     primary_model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
     fallback_raw = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash,gemini-3.5-flash"),
+        os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash,gemini-3.8-flash"),
     )
     fallback_models = [m.strip() for m in fallback_raw.split(",") if m.strip()]
     models_to_try = []

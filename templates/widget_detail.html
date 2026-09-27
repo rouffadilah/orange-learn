@@ -11,7 +11,7 @@
     >
 
     <title>
-        {{ widget["nama"] }} - orange-learn
+        {{ widget["nama"]|clean }} - orange-learn
     </title>
 
     <link
@@ -35,11 +35,11 @@
             <div>
 
                 <h1>
-                    {{ widget["nama"] }}
+                    {{ widget["nama"]|clean }}
                 </h1>
 
                 <p>
-                    {{ widget["kategori"] }}
+                    {{ widget["kategori"]|clean }}
                 </p>
 
             </div>
@@ -61,19 +61,19 @@
 
                 <div class="detail-badge">
 
-                    {{ widget["kategori"] }}
+                    {{ widget["kategori"]|clean }}
 
                 </div>
 
 
                 <h2>
-                    🧩 {{ widget["nama"] }}
+                    🧩 {{ widget["nama"]|clean }}
                 </h2>
 
 
                 <p class="detail-description">
 
-                    {{ widget["deskripsi"] }}
+                    {{ widget["deskripsi"]|clean }}
 
                 </p>
 
@@ -87,7 +87,7 @@
                         </strong>
 
                         <p>
-                            {{ widget["tingkat"] }}
+                            {{ widget["tingkat"]|clean }}
                         </p>
 
                     </div>
@@ -100,7 +100,7 @@
                         </strong>
 
                         <p>
-                            {{ widget["input_data"] }}
+                            {{ widget["input_data"]|clean }}
                         </p>
 
                     </div>
@@ -113,7 +113,7 @@
                         </strong>
 
                         <p>
-                            {{ widget["output_data"] }}
+                            {{ widget["output_data"]|clean }}
                         </p>
 
                     </div>
@@ -130,7 +130,7 @@
 
                 <p class="detail-description">
 
-                    {{ widget["fungsi"] }}
+                    {{ widget["fungsi"]|clean }}
 
                 </p>
 
@@ -140,10 +140,10 @@
                 </h3>
 
 
-                <pre class="workflow-code">{{ widget["contoh"] }}</pre>
+                <pre class="workflow-code">{{ widget["contoh"]|clean }}</pre>
 
 
-                <div class="feature-callout compact"><div class="feature-callout-icon">🧭</div><div><strong>Ingin melihat versi visual?</strong><p>Gunakan panduan fitur untuk memahami input-output dan alur widget.</p></div><a href="/fitur?search={{ widget["nama"] }}" class="btn btn-secondary">Cari di Panduan →</a></div>
+                <div class="feature-callout compact"><div class="feature-callout-icon">🧭</div><div><strong>Ingin melihat versi visual?</strong><p>Gunakan panduan fitur untuk memahami input-output dan alur widget.</p></div><a href="/fitur?search={{ widget["nama"]|clean }}" class="btn btn-secondary">Cari di Panduan →</a></div>
 
                 <div class="detail-actions">
 

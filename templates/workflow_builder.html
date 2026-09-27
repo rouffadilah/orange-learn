@@ -1,1297 +1,655 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Workflow Builder - orange-learn
-    </title>
-
-    <link
-        rel="stylesheet"
-        href="/css/style.css"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Builder - orange-learn</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
-
-
 <body>
-
 <div class="app">
-
-    <!-- SIDEBAR -->
-
     {% include "_sidebar.html" %}
 
-
-    <!-- MAIN -->
-
     <main class="main">
-
-        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
-
+        <header class="topbar">
+            <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
             <div>
-
-                <h1>
-                    Workflow Builder
-                </h1>
-
-                <p>
-                    Susun workflow Orange Data Mining secara visual.
-                </p>
-
+                <h1>Workflow Builder</h1>
+                <p>Bangun workflow visual seperti Orange Data Mining dan olah dataset CSV langsung di browser.</p>
             </div>
-
+            <div class="builder-status-wrap">
+                <span class="builder-status-dot" id="builderStatusDot"></span>
+                <span id="builderStatusText">Siap</span>
+            </div>
         </header>
 
-
-        <section class="builder-page">
-
-
-            <!-- TOOLBOX -->
-
-            <aside class="builder-toolbox">
-
-                <div class="builder-title">
-
-                    <h2>
-                        🧩 Widget
-                    </h2>
-
-                    <p>
-                        Klik widget untuk menambahkannya.
-                    </p>
-
+        <section class="orange-builder-shell">
+            <aside class="orange-toolbox-panel">
+                <div class="orange-panel-heading">
+                    <div>
+                        <span class="eyebrow">WIDGET</span>
+                        <h2>Toolbox</h2>
+                    </div>
+                    <span class="widget-count-badge" id="toolboxCount">0</span>
                 </div>
-
-
-                <input
-                    type="text"
-                    id="widgetSearch"
-                    placeholder="🔎 Cari widget..."
-                >
-
-
-                <div
-                    class="toolbox-list"
-                    id="toolboxList"
-                >
-
+                <div class="orange-tool-search-wrap">
+                    <span>⌕</span>
+                    <input id="widgetSearch" type="search" placeholder="Cari widget..." autocomplete="off">
+                </div>
+                <div class="toolbox-tabs" role="tablist" aria-label="Kategori widget">
+                    <button class="toolbox-tab active" data-cat="all">Semua</button>
+                    <button class="toolbox-tab" data-cat="Data">Data</button>
+                    <button class="toolbox-tab" data-cat="Transform">Transform</button>
+                    <button class="toolbox-tab" data-cat="Visualize">Visualize</button>
+                    <button class="toolbox-tab" data-cat="Model">Model</button>
+                    <button class="toolbox-tab" data-cat="Evaluate">Evaluate</button>
+                </div>
+                <div class="toolbox-list orange-scroll" id="toolboxList">
                     {% for item in widget %}
-
-                    <button
-                        class="toolbox-widget"
-                        data-id="{{ item['id'] }}"
-                        data-name="{{ item['nama'] }}"
-                        data-category="{{ item['kategori'] }}"
-                        data-input="{{ item['input_data'] }}"
-                        data-output="{{ item['output_data'] }}"
-                    >
-
-                        <span>
-                            🧩
-                        </span>
-
-                        <div>
-
-                            <strong>
-                                {{ item["nama"] }}
-                            </strong>
-
-                            <small>
-                                {{ item["kategori"] }}
-                            </small>
-
-                        </div>
-
+                    <button class="orange-tool-item" data-id="{{ item['id'] }}" data-name="{{ item['nama']|e }}" data-category="{{ item['kategori']|e }}" data-input="{{ item['input_data']|e }}" data-output="{{ item['output_data']|e }}">
+                        <span class="orange-tool-icon">{{ '📁' if item['nama']|lower == 'file' else '▦' if 'data table' in item['nama']|lower else '📈' if item['kategori'] == 'Visualize' else '🤖' if item['kategori'] == 'Model' else '🧩' }}</span>
+                        <span class="orange-tool-copy"><strong>{{ item['nama'] }}</strong><small>{{ item['kategori'] }}</small></span>
+                        <span class="orange-tool-add">＋</span>
                     </button>
-
                     {% endfor %}
-
                 </div>
-
             </aside>
 
-
-            <!-- CANVAS -->
-
-            <section class="workflow-builder">
-
-
-                <div class="builder-toolbar">
-
-                    <div>
-
-                        <strong>
-                            Canvas Workflow
-                        </strong>
-
-                        <span id="nodeCount">
-                            0 widget
-                        </span>
-
+            <section class="orange-builder-center">
+                <div class="orange-canvas-toolbar">
+                    <div class="canvas-toolbar-left">
+                        <button class="canvas-action" id="newWorkflowBtn">＋ Baru</button>
+                        <button class="canvas-action" id="sampleWorkflowBtn">✨ Contoh EDA</button>
+                        <button class="canvas-action" id="loadWorkflowBtn">↥ Muat</button>
+                        <button class="canvas-action" id="saveWorkflowBtn">↧ Simpan</button>
+                        <button class="canvas-action" id="exportCsvBtn">⇩ CSV</button>
                     </div>
-
-
-                    <div class="toolbar-actions">
-
-                        <button
-                            class="secondary-btn"
-                            id="clearBtn"
-                        >
-                            🗑️ Bersihkan
-                        </button>
-
-                        <button
-                            class="secondary-btn"
-                            id="recommendBtn"
-                        >
-                            🤖 Saran Berikutnya
-                        </button>
-
-                        <button
-                            class="primary-btn"
-                            id="validateBtn"
-                        >
-                            🔍 Periksa Workflow
-                        </button>
-
+                    <div class="canvas-toolbar-right">
+                        <span class="canvas-chip" id="datasetChip">Dataset belum dimuat</span>
+                        <button class="canvas-action" id="fitCanvasBtn">Fit</button>
+                        <button class="canvas-action" id="zoomOutBtn">−</button>
+                        <span class="zoom-label" id="zoomLabel">100%</span>
+                        <button class="canvas-action" id="zoomInBtn">＋</button>
+                        <button class="canvas-action" id="clearBtn">🗑</button>
+                        <button class="canvas-action" id="validateBtn">✓ Cek</button>
+                        <button class="canvas-action primary" id="runBtn">▶ Jalankan</button>
                     </div>
-
                 </div>
 
-
-                <div
-                    class="workflow-canvas"
-                    id="workflowCanvas"
-                >
-
-                    <div
-                        class="canvas-empty"
-                        id="canvasEmpty"
-                    >
-
-                        <div>
-                            🛠️
+                <div class="orange-canvas" id="workflowCanvas">
+                    <svg class="orange-connections" id="connectionLayer" aria-hidden="true"></svg>
+                    <div class="orange-canvas-grid"></div>
+                    <div class="orange-canvas-viewport" id="canvasViewport">
+                        <div class="orange-canvas-empty" id="canvasEmpty">
+                            <div class="empty-orb">◌</div>
+                            <h3>Canvas workflow</h3>
+                            <p>Tambahkan <strong>File</strong> untuk memuat CSV, lalu hubungkan widget dengan port seperti Orange Data Mining.</p>
+                            <div class="empty-hint"><span>Input</span> → <span>Transform</span> → <span>Visualize</span> / <span>Model</span> → <span>Evaluate</span></div>
                         </div>
-
-                        <h3>
-                            Mulai Membuat Workflow
-                        </h3>
-
-                        <p>
-                            Klik widget di sebelah kiri
-                            untuk menambahkannya ke canvas.
-                        </p>
-
                     </div>
-
                 </div>
 
-
-                <!-- VALIDATION -->
-
-                <div
-                    class="validation-panel"
-                    id="validationPanel"
-                >
-
-                    <div class="validation-title">
-                        💡 Asisten Workflow
+                <div class="orange-results-panel" id="resultsPanel">
+                    <div class="results-tabs">
+                        <button class="result-tab active" data-result="overview">Overview</button>
+                        <button class="result-tab" data-result="table">Data Table</button>
+                        <button class="result-tab" data-result="profile">Profile</button>
+                        <button class="result-tab" data-result="chart">Chart</button>
+                        <button class="result-tab" data-result="log">Log</button>
                     </div>
-
-                    <div id="validationResult">
-                        Tambahkan widget kemudian klik
-                        <strong>Periksa Workflow</strong>.
+                    <div class="result-view active" id="result-overview">
+                        <div class="result-empty"><span>📊</span><strong>Hasil workflow akan muncul di sini</strong><small>Unggah CSV melalui widget File lalu klik Jalankan.</small></div>
                     </div>
-
+                    <div class="result-view" id="result-table"></div>
+                    <div class="result-view" id="result-profile"></div>
+                    <div class="result-view" id="result-chart"></div>
+                    <div class="result-view" id="result-log"></div>
                 </div>
-
-
             </section>
 
+            <aside class="orange-inspector-panel">
+                <div class="orange-panel-heading">
+                    <div>
+                        <span class="eyebrow">INSPECTOR</span>
+                        <h2 id="inspectorTitle">Canvas</h2>
+                    </div>
+                    <span class="inspector-pill" id="inspectorPill">—</span>
+                </div>
+                <div id="inspectorBody" class="inspector-body">
+                    <div class="inspector-empty">
+                        <div class="inspector-icon">🛠</div>
+                        <strong>Pilih widget</strong>
+                        <p>Atur parameter widget di panel ini. Klik node File untuk memilih dataset CSV.</p>
+                    </div>
+                </div>
+            </aside>
         </section>
-
     </main>
-
 </div>
 
+<input id="csvInput" type="file" accept=".csv,text/csv" hidden>
+<input id="workflowFileInput" type="file" accept=".json,application/json" hidden>
 
 <script>
-
-const canvas =
-    document.getElementById("workflowCanvas");
-
-const canvasEmpty =
-    document.getElementById("canvasEmpty");
-
-const nodeCount =
-    document.getElementById("nodeCount");
-
-const validationResult =
-    document.getElementById("validationResult");
-
-const validationPanel =
-    document.getElementById("validationPanel");
-
-const widgetSearch =
-    document.getElementById("widgetSearch");
-
-const toolboxList =
-    document.getElementById("toolboxList");
-
-const clearBtn =
-    document.getElementById("clearBtn");
-
-const validateBtn =
-    document.getElementById("validateBtn");
-
-const recommendBtn =
-    document.getElementById("recommendBtn");
-
-    recommendBtn.addEventListener(
-    "click",
-    () => {
-
-        const recommendation =
-            getNextRecommendation();
-
-
-        showValidation(
-
-            "info",
-
-            "🤖 Rekomendasi Tutor",
-
-            `
-            <div class="recommendation-box">
-
-                <div class="recommendation-widget">
-
-                    🧩
-
-                    <strong>
-                        ${recommendation.name}
-                    </strong>
-
-                </div>
-
-                <p>
-                    ${recommendation.reason}
-                </p>
-
-            </div>
-            `
-
-        );
-
-    }
-);
-
-let nodes = [];
-
-let nextNodeId = 1;
-
-function loadGeneratedWorkflow() {
-
-    const saved =
-        localStorage.getItem(
-            "orangeGeneratedWorkflow"
-        );
-
-
-    if (!saved) {
-
-        return;
-
-    }
-
-
-    try {
-
-        const widgets =
-            JSON.parse(saved);
-
-
-        widgets.forEach(
-            widgetName => {
-
-                const button =
-                    Array.from(
-                        document.querySelectorAll(
-                            ".toolbox-widget"
-                        )
-                    ).find(
-                        button =>
-                            button.dataset.name
-                            === widgetName
-                    );
-
-
-                if (button) {
-
-                    addNode({
-
-                        id:
-                            button.dataset.id,
-
-                        name:
-                            button.dataset.name,
-
-                        category:
-                            button.dataset.category,
-
-                        input:
-                            button.dataset.input,
-
-                        output:
-                            button.dataset.output
-
-                    });
-
-                }
-
-            }
-        );
-
-
-        localStorage.removeItem(
-            "orangeGeneratedWorkflow"
-        );
-
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Gagal memuat workflow:",
-            error
-        );
-
-    }
-
-}
-
-
-/* ==========================================
-   TAMBAH WIDGET
-========================================== */
-
-document
-    .querySelectorAll(".toolbox-widget")
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                addNode({
-
-                    id: button.dataset.id,
-
-                    name: button.dataset.name,
-
-                    category:
-                        button.dataset.category,
-
-                    input:
-                        button.dataset.input,
-
-                    output:
-                        button.dataset.output
-
-                });
-
-            }
-        );
-
-    });
-
-
-/* ==========================================
-   ADD NODE
-========================================== */
-
-function addNode(widget) {
-
-    const node = {
-
-        nodeId: nextNodeId++,
-
-        ...widget
-
+(() => {
+    const canvas = document.getElementById('workflowCanvas');
+    const viewport = document.getElementById('canvasViewport');
+    const connectionLayer = document.getElementById('connectionLayer');
+    const canvasEmpty = document.getElementById('canvasEmpty');
+    const inspectorBody = document.getElementById('inspectorBody');
+    const inspectorTitle = document.getElementById('inspectorTitle');
+    const inspectorPill = document.getElementById('inspectorPill');
+    const resultViews = [...document.querySelectorAll('.result-view')];
+    const resultTabs = [...document.querySelectorAll('.result-tab')];
+    const statusDot = document.getElementById('builderStatusDot');
+    const statusText = document.getElementById('builderStatusText');
+    const datasetChip = document.getElementById('datasetChip');
+    const zoomLabel = document.getElementById('zoomLabel');
+    const csvInput = document.getElementById('csvInput');
+    const workflowFileInput = document.getElementById('workflowFileInput');
+
+    const state = {
+        nodes: [],
+        connections: [],
+        nextId: 1,
+        selectedNodeId: null,
+        connectingFrom: null,
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        dataset: null,
+        datasetName: '',
+        lastMessage: ''
     };
 
-    nodes.push(node);
+    const widgetButtons = [...document.querySelectorAll('.orange-tool-item')];
+    document.getElementById('toolboxCount').textContent = widgetButtons.length;
 
-    renderNodes();
-
-}
-
-
-/* ==========================================
-   RENDER
-========================================== */
-
-function renderNodes() {
-
-    const oldNodes =
-        canvas.querySelectorAll(".workflow-node");
-
-    oldNodes.forEach(
-        node => node.remove()
-    );
-
-
-    if (nodes.length === 0) {
-
-        canvasEmpty.style.display =
-            "flex";
-
-    } else {
-
-        canvasEmpty.style.display =
-            "none";
-
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[ch]));
     }
 
+    function setStatus(text, mode='ready') {
+        statusText.textContent = text;
+        statusDot.className = 'builder-status-dot ' + mode;
+    }
 
-    nodes.forEach(
-        (node, index) => {
+    function widgetMeta(name) {
+        const key = name.toLowerCase();
+        if (key === 'file' || key.includes('csv file')) return {icon:'📁', color:'data', inputs:['—'], outputs:['Data']};
+        if (key.includes('data table')) return {icon:'▦', color:'data', inputs:['Data'], outputs:['Data','Selection']};
+        if (key.includes('select columns')) return {icon:'◫', color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('sampler')) return {icon:'◌', color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('preprocess') || key.includes('impute') || key.includes('normalize')) return {icon:'🧹', color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('distribution') || key.includes('histogram')) return {icon:'▥', color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('scatter')) return {icon:'⌁', color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('box plot')) return {icon:'▤', color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('heat map')) return {icon:'▦', color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('random forest')) return {icon:'🌲', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('tree')) return {icon:'🌳', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('knn')) return {icon:'◉', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('svm')) return {icon:'◎', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('regression')) return {icon:'╱', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('test & score')) return {icon:'✓', color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
+        if (key.includes('confusion matrix')) return {icon:'▦', color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        if (key.includes('roc')) return {icon:'⌁', color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        return {icon:'🧩', color:'data', inputs:['Data'], outputs:['Data']};
+    }
 
-            const element =
-                document.createElement("div");
+    function classifyCategory(name, category) {
+        const meta = widgetMeta(name);
+        if (meta.color === 'visualize') return 'Visualize';
+        if (meta.color === 'model') return 'Model';
+        if (meta.color === 'evaluate') return 'Evaluate';
+        if (meta.color === 'transform') return 'Transform';
+        return category || 'Data';
+    }
 
-            element.className =
-                "workflow-node";
+    function nextPosition() {
+        const i = state.nodes.length;
+        return {x: 90 + (i % 4) * 260, y: 95 + Math.floor(i / 4) * 190};
+    }
 
-
-            element.innerHTML = `
-
-                <div class="node-number">
-                    ${index + 1}
-                </div>
-
-                <div class="node-icon">
-                    🧩
-                </div>
-
-                <div class="node-content">
-
-                    <strong>
-                        ${node.name}
-                    </strong>
-
-                    <small>
-                        ${node.category}
-                    </small>
-
-                </div>
-
-                <button
-                    class="remove-node"
-                    onclick="removeNode(${node.nodeId})"
-                >
-                    ×
-                </button>
-
-            `;
-
-
-            canvas.appendChild(element);
-
+    function addWidget(data, pos = null, opts = {}) {
+        const meta = widgetMeta(data.name);
+        const node = {
+            id: state.nextId++,
+            name: data.name,
+            category: classifyCategory(data.name, data.category),
+            input: data.input || meta.inputs.join(', '),
+            output: data.output || meta.outputs.join(', '),
+            icon: meta.icon,
+            color: meta.color,
+            x: pos?.x ?? nextPosition().x,
+            y: pos?.y ?? nextPosition().y,
+            config: {}
+        };
+        state.nodes.push(node);
+        renderNodes();
+        selectNode(node.id);
+        if (!opts.skipAutoConnect && state.nodes.length > 1) {
+            const previous = state.nodes[state.nodes.length - 2];
+            if (!state.connections.some(c => c.from === previous.id && c.to === node.id)) {
+                state.connections.push({id:'c'+Date.now()+Math.random(), from:previous.id, to:node.id});
+                renderConnections();
+            }
         }
-    );
+        setStatus(`${node.name} ditambahkan`, 'ready');
+        return node;
+    }
 
+    function removeNode(id) {
+        state.nodes = state.nodes.filter(n => n.id !== id);
+        state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
+        if (state.selectedNodeId === id) state.selectedNodeId = null;
+        renderNodes();
+        renderConnections();
+        renderInspector();
+    }
 
-    updateCount();
+    function selectNode(id) {
+        state.selectedNodeId = id;
+        renderNodes();
+        renderInspector();
+    }
 
-}
+    function portMarkup(node, side, label) {
+        return `<button class="orange-port ${side}" data-node="${node.id}" data-side="${side}" title="${escapeHtml(label)}"></button>`;
+    }
 
+    function renderNodes() {
+        viewport.querySelectorAll('.orange-node').forEach(el => el.remove());
+        canvasEmpty.style.display = state.nodes.length ? 'none' : 'flex';
+        state.nodes.forEach(node => {
+            const selected = state.selectedNodeId === node.id ? ' selected' : '';
+            const el = document.createElement('div');
+            el.className = `orange-node ${node.color}${selected}`;
+            el.dataset.id = node.id;
+            el.style.left = node.x + 'px';
+            el.style.top = node.y + 'px';
+            el.innerHTML = `
+                ${portMarkup(node,'input',node.input)}
+                <div class="orange-node-topbar"><span class="orange-node-type">${escapeHtml(node.category)}</span><button class="orange-node-menu" data-menu="${node.id}" aria-label="Opsi">⋮</button></div>
+                <div class="orange-node-main"><div class="orange-node-icon">${node.icon}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.output)}</small></div></div>
+                <div class="orange-node-foot"><span>${node.name.toLowerCase()==='file' ? (state.datasetName ? 'Dataset loaded' : 'CSV input') : 'Data channel'}</span><button class="orange-node-remove" data-remove="${node.id}" aria-label="Hapus">×</button></div>
+                ${portMarkup(node,'output',node.output)}
+            `;
+            viewport.appendChild(el);
+            bindNodeEvents(el, node);
+        });
+        renderConnections();
+    }
 
-/* ==========================================
-   REMOVE NODE
-========================================== */
+    function bindNodeEvents(el, node) {
+        el.addEventListener('mousedown', e => {
+            if (e.target.closest('.orange-port,.orange-node-remove,.orange-node-menu')) return;
+            selectNode(node.id);
+            beginDrag(e, el, node);
+        });
+        el.addEventListener('dblclick', () => {
+            selectNode(node.id);
+            if (node.name.toLowerCase() === 'file') csvInput.click();
+        });
+        el.querySelectorAll('.orange-port').forEach(port => {
+            port.addEventListener('click', e => {
+                e.stopPropagation();
+                const side = port.dataset.side;
+                if (side === 'output') {
+                    state.connectingFrom = Number(port.dataset.node);
+                    setStatus('Pilih port input widget tujuan', 'working');
+                    renderNodes();
+                    return;
+                }
+                if (side === 'input' && state.connectingFrom) {
+                    const to = Number(port.dataset.node);
+                    if (to !== state.connectingFrom) {
+                        const exists = state.connections.some(c => c.from === state.connectingFrom && c.to === to);
+                        if (!exists) state.connections.push({id:'c'+Date.now()+Math.random(), from:state.connectingFrom, to});
+                    }
+                    state.connectingFrom = null;
+                    setStatus('Koneksi dibuat', 'ready');
+                    renderNodes();
+                    renderConnections();
+                }
+            });
+        });
+        el.querySelector('[data-remove]')?.addEventListener('click', e => { e.stopPropagation(); removeNode(Number(e.currentTarget.dataset.remove)); });
+        el.querySelector('[data-menu]')?.addEventListener('click', e => { e.stopPropagation(); selectNode(Number(e.currentTarget.dataset.menu)); });
+    }
 
-function removeNode(nodeId) {
+    function beginDrag(event, el, node) {
+        const rect = canvas.getBoundingClientRect();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const originX = node.x;
+        const originY = node.y;
+        const move = ev => {
+            node.x = Math.max(10, originX + (ev.clientX - startX) / state.zoom);
+            node.y = Math.max(10, originY + (ev.clientY - startY) / state.zoom);
+            el.style.left = node.x + 'px';
+            el.style.top = node.y + 'px';
+            renderConnections();
+        };
+        const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+    }
 
-    nodes =
-        nodes.filter(
-            node =>
-                node.nodeId !== nodeId
-        );
+    function renderConnections() {
+        const rect = viewport.getBoundingClientRect();
+        connectionLayer.setAttribute('viewBox', `0 0 ${Math.max(viewport.scrollWidth,rect.width)} ${Math.max(viewport.scrollHeight,rect.height)}`);
+        connectionLayer.innerHTML = state.connections.map(conn => {
+            const from = state.nodes.find(n=>n.id===conn.from);
+            const to = state.nodes.find(n=>n.id===conn.to);
+            if (!from || !to) return '';
+            const x1 = from.x + 208;
+            const y1 = from.y + 62;
+            const x2 = to.x;
+            const y2 = to.y + 62;
+            const dx = Math.max(55, Math.abs(x2-x1)*0.45);
+            return `<path class="orange-connection" d="M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}" />`;
+        }).join('');
+    }
 
-    renderNodes();
+    function showResult(name) {
+        resultTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.result === name));
+        resultViews.forEach(view => view.classList.toggle('active', view.id === 'result-' + name));
+    }
+    resultTabs.forEach(tab => tab.addEventListener('click', () => showResult(tab.dataset.result)));
 
-}
+    function detectDelimiter(text) {
+        const first = text.split(/\r?\n/).find(Boolean) || '';
+        const candidates = [',',';','\t'];
+        return candidates.sort((a,b)=>first.split(b).length-first.split(a).length)[0];
+    }
 
+    function parseCsv(text) {
+        text = text.replace(/^\uFEFF/, '');
+        const delimiter = detectDelimiter(text);
+        const rows=[]; let row=[]; let cell=''; let quoted=false;
+        for (let i=0;i<text.length;i++) {
+            const ch=text[i]; const next=text[i+1];
+            if (ch === '"' && quoted && next === '"') { cell += '"'; i++; continue; }
+            if (ch === '"') { quoted=!quoted; continue; }
+            if (!quoted && ch === delimiter) { row.push(cell); cell=''; continue; }
+            if (!quoted && (ch === '\n' || ch === '\r')) {
+                if (ch === '\r' && next === '\n') i++;
+                row.push(cell); cell='';
+                if (row.some(v => v.trim() !== '')) rows.push(row);
+                row=[]; continue;
+            }
+            cell += ch;
+        }
+        if (cell.length || row.length) { row.push(cell); if (row.some(v=>v.trim()!=='')) rows.push(row); }
+        if (!rows.length) return {headers:[], rows:[], delimiter};
+        const headers = rows[0].map((h,i)=>String(h).trim() || `Kolom ${i+1}`);
+        const data = rows.slice(1).map(r => Object.fromEntries(headers.map((h,i)=>[h, (r[i] ?? '').trim()])));
+        return {headers,data,delimiter};
+    }
 
-/* ==========================================
-   COUNT
-========================================== */
+    function inferType(values) {
+        const cleaned = values.filter(v => String(v).trim() !== '');
+        if (!cleaned.length) return 'empty';
+        const numeric = cleaned.filter(v => Number.isFinite(Number(String(v).replace(',','.')))).length / cleaned.length;
+        if (numeric > .9) return 'numeric';
+        return 'categorical';
+    }
 
-function updateCount() {
+    function profileDataset(dataset) {
+        const cols = dataset.headers.map(h => {
+            const vals = dataset.data.map(r=>r[h]);
+            const type = inferType(vals);
+            const missing = vals.filter(v=>String(v).trim()==='').length;
+            let summary = '';
+            if (type==='numeric') {
+                const nums = vals.filter(v=>v!=='' && Number.isFinite(Number(String(v).replace(',','.')))).map(v=>Number(String(v).replace(',','.')));
+                const avg = nums.length ? nums.reduce((a,b)=>a+b,0)/nums.length : 0;
+                const min = nums.length ? Math.min(...nums) : 0;
+                const max = nums.length ? Math.max(...nums) : 0;
+                summary = `min ${formatNumber(min)} · avg ${formatNumber(avg)} · max ${formatNumber(max)}`;
+            } else {
+                const counts={}; vals.filter(Boolean).forEach(v=>counts[v]=(counts[v]||0)+1);
+                const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+                summary = top ? `${Object.keys(counts).length} kategori · modus ${top[0]}` : 'Belum ada nilai';
+            }
+            return {name:h,type,missing,summary};
+        });
+        return {rows:dataset.data.length, cols};
+    }
 
-    nodeCount.textContent =
-        `${nodes.length} widget`;
+    function formatNumber(v) { return Number.isFinite(v) ? new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(v) : '—'; }
 
-}
+    function loadDataset(name, parsed) {
+        state.dataset = parsed;
+        state.datasetName = name;
+        datasetChip.textContent = `${name} · ${parsed.data.length.toLocaleString('id-ID')} baris`;
+        setStatus('Dataset siap dianalisis', 'ready');
+        renderOverview();
+        renderInspector();
+        const fileNode = state.nodes.find(n => n.name.toLowerCase() === 'file');
+        if (fileNode) fileNode.config.datasetName = name;
+    }
 
+    function renderOverview() {
+        if (!state.dataset) return;
+        const profile = profileDataset(state.dataset);
+        const numeric = profile.cols.filter(c=>c.type==='numeric').length;
+        const missing = profile.cols.reduce((sum,c)=>sum+c.missing,0);
+        document.getElementById('result-overview').innerHTML = `
+            <div class="result-kpis">
+                <div><span>Baris</span><strong>${profile.rows.toLocaleString('id-ID')}</strong></div>
+                <div><span>Kolom</span><strong>${profile.cols.length}</strong></div>
+                <div><span>Numerik</span><strong>${numeric}</strong></div>
+                <div><span>Missing</span><strong>${missing}</strong></div>
+            </div>
+            <div class="result-callout"><strong>${escapeHtml(state.datasetName)}</strong><span>Dataset aktif. Gunakan Data Table untuk inspeksi, Distribution untuk sebaran, dan Scatter Plot untuk hubungan dua variabel numerik.</span></div>`;
+        renderDataTable(); renderProfile();
+    }
 
-/* ==========================================
-   CLEAR
-========================================== */
+    function renderDataTable() {
+        const container=document.getElementById('result-table');
+        if (!state.dataset) { container.innerHTML='<div class="result-empty">Belum ada dataset.</div>'; return; }
+        const preview=state.dataset.data.slice(0,50);
+        container.innerHTML=`<div class="result-title"><strong>Preview Data</strong><span>50 baris pertama</span></div><div class="data-table-wrap"><table><thead><tr>${state.dataset.headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${preview.map(r=>`<tr>${state.dataset.headers.map(h=>`<td>${escapeHtml(r[h])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    }
 
-clearBtn.addEventListener(
-    "click",
-    () => {
+    function renderProfile() {
+        const container=document.getElementById('result-profile');
+        if (!state.dataset) { container.innerHTML='<div class="result-empty">Belum ada dataset.</div>'; return; }
+        const p=profileDataset(state.dataset);
+        container.innerHTML=`<div class="result-title"><strong>Data Profile</strong><span>${p.cols.length} kolom</span></div><div class="profile-grid">${p.cols.map(c=>`<div class="profile-card"><div><strong>${escapeHtml(c.name)}</strong><span class="type-pill ${c.type}">${c.type}</span></div><small>Missing: ${c.missing}</small><p>${escapeHtml(c.summary)}</p></div>`).join('')}</div>`;
+    }
 
-        if (nodes.length === 0) {
+    function renderChart(type='scatter') {
+        const container=document.getElementById('result-chart');
+        if (!state.dataset) { container.innerHTML='<div class="result-empty">Muat dataset terlebih dahulu.</div>'; return; }
+        const profile=profileDataset(state.dataset);
+        const numeric=profile.cols.filter(c=>c.type==='numeric').map(c=>c.name);
+        const node=state.nodes.find(n=>n.id===state.selectedNodeId);
+        const wantsDistribution = type==='distribution' || /distribution|histogram|box plot/i.test(node?.name||'');
+        if (wantsDistribution) {
+            const col=node?.config?.column || state.dataset.headers.find(h=>inferType(state.dataset.data.map(r=>r[h]))==='numeric') || state.dataset.headers[0];
+            const vals=state.dataset.data.map(r=>String(r[col]??'').trim()).filter(Boolean);
+            const numericVals=vals.map(v=>Number(String(v).replace(',','.'))).filter(Number.isFinite);
+            let counts=[];
+            let title='Distribution';
+            if (numericVals.length===vals.length && numericVals.length) {
+                const min=Math.min(...numericVals), max=Math.max(...numericVals); const bins=8; const width=(max-min||1)/bins;
+                const b=new Array(bins).fill(0); numericVals.forEach(v=>{let i=Math.floor((v-min)/width); if(i>=bins)i=bins-1; b[i]++;});
+                counts=b.map((count,i)=>({label:formatNumber(min+i*width),value:count})); title='Distribusi · '+col;
+            } else {
+                const map={}; vals.forEach(v=>map[v]=(map[v]||0)+1); counts=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([label,value])=>({label,value})); title='Distribusi kategori · '+col;
+            }
+            const width=760,height=300,pad=44,maxV=Math.max(...counts.map(d=>d.value),1),gap=6,bw=Math.max(12,(width-pad*2)/Math.max(counts.length,1)-gap);
+            container.innerHTML=`<div class="result-title"><strong>${escapeHtml(title)}</strong><span>${vals.length.toLocaleString('id-ID')} nilai</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)}"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/>${counts.map((d,i)=>{const h=(d.value/maxV)*(height-pad*2);const x=pad+i*((width-pad*2)/counts.length)+gap/2;const y=height-pad-h;return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" class="chart-bar"/><text x="${x+bw/2}" y="${height-pad+14}" text-anchor="middle" class="chart-label">${escapeHtml(String(d.label).slice(0,11))}</text>`;}).join('')}</svg></div>`;
             return;
         }
+        if (numeric.length<2) { container.innerHTML='<div class="result-empty"><span>📈</span><strong>Butuh minimal 2 kolom numerik</strong><small>Gunakan Data Table/Profile untuk dataset kategorikal.</small></div>'; return; }
+        const x=node?.config?.x || numeric[0]; const y=node?.config?.y || numeric[1];
+        const pts=state.dataset.data.map(r=>({x:Number(String(r[x]).replace(',','.')),y:Number(String(r[y]).replace(',','.'))})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).slice(0,400);
+        const width=720,height=300,pad=42; if (!pts.length){container.innerHTML='<div class="result-empty">Tidak ada pasangan nilai numerik yang dapat diplot.</div>';return;}
+        const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y); const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+        const sx=v=>pad + ((v-minX)/(maxX-minX||1))*(width-pad*2); const sy=v=>height-pad - ((v-minY)/(maxY-minY||1))*(height-pad*2);
+        container.innerHTML=`<div class="result-title"><strong>Scatter Plot</strong><span>${escapeHtml(x)} × ${escapeHtml(y)}</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Scatter Plot"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height-pad}" class="chart-axis"/>${pts.map(p=>`<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="3.2" class="chart-point"/>`).join('')}<text x="${width/2}" y="${height-8}" class="chart-label">${escapeHtml(x)}</text><text x="14" y="${height/2}" transform="rotate(-90 14 ${height/2})" class="chart-label">${escapeHtml(y)}</text></svg></div>`;
+    }
 
-        if (
-            confirm(
-                "Hapus semua widget dari workflow?"
-            )
-        ) {
-
-            nodes = [];
-
-            renderNodes();
-
-            validationResult.innerHTML =
-                "Canvas sudah dibersihkan.";
-
+    function renderInspector() {
+        const node = state.nodes.find(n=>n.id===state.selectedNodeId);
+        if (!node) {
+            inspectorTitle.textContent='Canvas'; inspectorPill.textContent='—'; inspectorBody.innerHTML=`<div class="inspector-empty"><div class="inspector-icon">🛠</div><strong>Pilih widget</strong><p>Atur parameter widget di panel ini. Klik node File untuk memilih dataset CSV.</p></div>`; return;
         }
-
-    }
-);
-
-
-/* ==========================================
-   SEARCH WIDGET
-========================================== */
-
-widgetSearch.addEventListener(
-    "input",
-    () => {
-
-        const keyword =
-            widgetSearch.value
-                .toLowerCase()
-                .trim();
-
-
-        document
-            .querySelectorAll(
-                ".toolbox-widget"
-            )
-            .forEach(button => {
-
-                const name =
-                    button.dataset.name
-                        .toLowerCase();
-
-                const category =
-                    button.dataset.category
-                        .toLowerCase();
-
-
-                if (
-                    name.includes(keyword)
-                    ||
-                    category.includes(keyword)
-                ) {
-
-                    button.style.display =
-                        "flex";
-
-                } else {
-
-                    button.style.display =
-                        "none";
-
-                }
-
-            });
-
-    }
-);
-
-
-/* ==========================================
-   VALIDASI WORKFLOW
-========================================== */
-
-validateBtn.addEventListener(
-    "click",
-    validateWorkflow
-);
-
-
-function validateWorkflow() {
-
-    if (nodes.length === 0) {
-
-        showValidation(
-            "warning",
-            "⚠️ Workflow masih kosong",
-            "Tambahkan widget terlebih dahulu."
-        );
-
-        return;
-    }
-
-
-    if (nodes.length === 1) {
-
-        showValidation(
-            "warning",
-            "⚠️ Workflow belum lengkap",
-            "Tambahkan minimal satu widget lagi agar hubungan antar-widget dapat dianalisis."
-        );
-
-        return;
-    }
-
-
-    const names =
-        nodes.map(node => node.name);
-
-
-    let messages = [];
-
-    let suggestions = [];
-
-    let errors = [];
-
-
-    /* =====================================
-       1. SUMBER DATA
-    ===================================== */
-
-    const dataSources = [
-
-        "File",
-        "CSV File Import",
-        "Excel",
-        "SQL Table",
-        "Data Table"
-
-    ];
-
-
-    const hasDataSource =
-        names.some(
-            name =>
-                dataSources.some(
-                    source =>
-                        name
-                            .toLowerCase()
-                            .includes(
-                                source.toLowerCase()
-                            )
-                )
-        );
-
-
-    if (!hasDataSource) {
-
-        errors.push(
-            "Workflow belum memiliki sumber data."
-        );
-
-        suggestions.push(
-            "📁 File — gunakan untuk memasukkan dataset."
-        );
-
-    }
-
-
-    /* =====================================
-       2. PREPROCESSING
-    ===================================== */
-
-    const preprocessing = [
-
-        "Select Columns",
-        "Preprocess",
-        "Impute",
-        "Continuize",
-        "Normalize",
-        "Discretize"
-
-    ];
-
-
-    const hasPreprocessing =
-        names.some(
-            name =>
-                preprocessing.some(
-                    item =>
-                        name
-                            .toLowerCase()
-                            .includes(
-                                item.toLowerCase()
-                            )
-                )
-        );
-
-
-    if (
-        hasDataSource
-        &&
-        !hasPreprocessing
-    ) {
-
-        suggestions.push(
-            "🔧 Preprocess / Select Columns — pertimbangkan preprocessing sebelum modeling."
-        );
-
-    }
-
-
-    /* =====================================
-       3. MODEL
-    ===================================== */
-
-    const classificationModels = [
-
-        "Random Forest",
-        "Tree",
-        "kNN",
-        "SVM",
-        "Logistic Regression",
-        "Naive Bayes"
-
-    ];
-
-
-    const regressionModels = [
-
-        "Linear Regression",
-        "Random Forest Regression"
-
-    ];
-
-
-    const clusteringModels = [
-
-        "k-Means",
-        "K-Means",
-        "Hierarchical Clustering",
-        "DBSCAN"
-
-    ];
-
-
-    const allModels = [
-
-        ...classificationModels,
-        ...regressionModels,
-        ...clusteringModels
-
-    ];
-
-
-    const modelName =
-        names.find(
-            name =>
-                allModels.some(
-                    model =>
-                        name
-                            .toLowerCase()
-                            .includes(
-                                model.toLowerCase()
-                            )
-                )
-        );
-
-
-    const hasModel =
-        Boolean(modelName);
-
-
-    if (!hasModel) {
-
-        suggestions.push(
-            "🤖 Tambahkan model machine learning sesuai tujuan analisis."
-        );
-
-    }
-
-
-    /* =====================================
-       4. TEST & SCORE
-    ===================================== */
-
-    const hasEvaluation =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes("test & score")
-        );
-
-
-    if (
-        hasModel
-        &&
-        !hasEvaluation
-    ) {
-
-        suggestions.push(
-            "📊 Test & Score — tambahkan untuk mengevaluasi performa model."
-        );
-
-    }
-
-
-    /* =====================================
-       5. CONFUSION MATRIX
-    ===================================== */
-
-    const hasConfusionMatrix =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes(
-                        "confusion matrix"
-                    )
-        );
-
-
-    if (
-        hasEvaluation
-        &&
-        !hasConfusionMatrix
-        &&
-        modelName
-    ) {
-
-        if (
-            classificationModels.some(
-                model =>
-                    modelName
-                        .toLowerCase()
-                        .includes(
-                            model.toLowerCase()
-                        )
-            )
-        ) {
-
-            suggestions.push(
-                "🎯 Confusion Matrix — gunakan untuk melihat hasil klasifikasi secara lebih detail."
-            );
-
+        inspectorTitle.textContent=node.name; inspectorPill.textContent=node.category;
+        const key=node.name.toLowerCase();
+        let html=`<div class="inspector-summary"><div class="inspector-large-icon ${node.color}">${node.icon}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.input)} → ${escapeHtml(node.output)}</small></div></div>`;
+        if (key==='file') {
+            html += `<div class="inspector-section"><label>Dataset CSV</label><button class="upload-dataset-btn" id="uploadCsvBtn">📁 Pilih file CSV</button><button class="upload-sample-btn" id="loadSampleBtn">✨ Muat dataset contoh</button><p class="inspector-help">Format CSV dengan header pada baris pertama. Dataset diproses lokal di browser.</p>${state.dataset ? `<div class="loaded-file"><strong>${escapeHtml(state.datasetName)}</strong><span>${state.dataset.data.length.toLocaleString('id-ID')} baris · ${state.dataset.headers.length} kolom</span></div>`:''}</div>`;
+        } else if (!state.dataset) {
+            html += `<div class="inspector-section"><div class="inspector-warning">Muat dataset melalui widget File terlebih dahulu.</div></div>`;
         }
-
+        if (key.includes('select columns')) html += renderSelectConfig(node);
+        if (key.includes('distribution') || key.includes('scatter') || key.includes('box plot')) html += renderVisualConfig(node);
+        if (key.includes('data sampler')) html += `<div class="inspector-section"><label>Ukuran sampel: <span id="sampleValue">${node.config.sample || 80}%</span></label><input class="range-input" id="sampleRange" type="range" min="10" max="100" value="${node.config.sample || 80}"><p class="inspector-help">Digunakan sebagai subset data untuk eksplorasi cepat.</p></div>`;
+        if (key.includes('preprocess')) html += `<div class="inspector-section"><label>Penanganan missing value</label><select class="inspector-select" id="missingMode"><option value="median">Numerik → median</option><option value="mode">Kategorikal → modus</option><option value="drop">Hapus baris kosong</option></select><p class="inspector-help">Perubahan hanya berlaku pada dataset yang diteruskan workflow.</p></div>`;
+        inspectorBody.innerHTML=html;
+        document.getElementById('uploadCsvBtn')?.addEventListener('click',()=>csvInput.click());
+        document.getElementById('loadSampleBtn')?.addEventListener('click', async()=>{
+            try { setStatus('Memuat dataset contoh…','working'); const response=await fetch('/datasets/contoh_siswa.csv'); if(!response.ok) throw new Error('Dataset contoh tidak ditemukan.'); loadDataset('contoh_siswa.csv',parseCsv(await response.text())); showResult('overview'); } catch(err) { setStatus('Dataset contoh gagal dimuat','error'); document.getElementById('result-log').innerHTML=`<div class="validation-result warning"><strong>Dataset contoh gagal dimuat</strong><p>${escapeHtml(err.message)}</p></div>`; showResult('log'); }
+        });
+        document.getElementById('sampleRange')?.addEventListener('input',e=>{ node.config.sample=Number(e.target.value); document.getElementById('sampleValue').textContent=e.target.value+'%'; });
+        document.getElementById('missingMode')?.addEventListener('change',e=>{node.config.missingMode=e.target.value;});
+        document.querySelectorAll('.select-config').forEach(sel => sel.addEventListener('change',()=>{
+            const checked=[...document.querySelectorAll('.col-check:checked')].map(x=>x.value); node.config.selected=checked; node.config.target=document.getElementById('targetColumn')?.value || '';
+        }));
+        document.getElementById('xSelect')?.addEventListener('change',e=>{node.config.x=e.target.value; renderChart('scatter'); showResult('chart');});
+        document.getElementById('ySelect')?.addEventListener('change',e=>{node.config.y=e.target.value; renderChart('scatter'); showResult('chart');});
     }
 
-
-    /* =====================================
-       6. DATA TABLE
-    ===================================== */
-
-    const hasDataTable =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes(
-                        "data table"
-                    )
-        );
-
-
-    if (
-        hasDataSource
-        &&
-        !hasDataTable
-    ) {
-
-        suggestions.push(
-            "📋 Data Table — gunakan untuk melihat isi dataset."
-        );
-
+    function renderSelectConfig(node) {
+        if (!state.dataset) return '';
+        const selected=node.config.selected || state.dataset.headers.slice();
+        return `<div class="inspector-section"><label>Features</label><div class="column-check-list">${state.dataset.headers.map(h=>`<label><input class="col-check select-config" type="checkbox" value="${escapeHtml(h)}" ${selected.includes(h)?'checked':''}> <span>${escapeHtml(h)}</span></label>`).join('')}</div><label>Target / Class</label><select class="inspector-select" id="targetColumn"><option value="">Tidak ditetapkan</option>${state.dataset.headers.map(h=>`<option value="${escapeHtml(h)}" ${node.config.target===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}</select></div>`;
     }
 
-
-    /* =====================================
-       7. VISUALISASI
-    ===================================== */
-
-    const visualizationWidgets = [
-
-        "Scatter Plot",
-        "Box Plot",
-        "Histogram",
-        "Distributions",
-        "Heat Map"
-
-    ];
-
-
-    const hasVisualization =
-        names.some(
-            name =>
-                visualizationWidgets.some(
-                    item =>
-                        name
-                            .toLowerCase()
-                            .includes(
-                                item.toLowerCase()
-                            )
-                )
-        );
-
-
-    if (
-        hasDataSource
-        &&
-        !hasVisualization
-    ) {
-
-        suggestions.push(
-            "📈 Tambahkan widget visualisasi seperti Scatter Plot atau Distributions untuk mengeksplorasi data."
-        );
-
+    function renderVisualConfig(node) {
+        if (!state.dataset) return '';
+        const numeric=profileDataset(state.dataset).cols.filter(c=>c.type==='numeric').map(c=>c.name);
+        if (node.name.toLowerCase().includes('scatter') && numeric.length>=2) return `<div class="inspector-section"><label>Sumbu X</label><select class="inspector-select" id="xSelect">${numeric.map(h=>`<option value="${escapeHtml(h)}" ${node.config.x===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}</select><label>Sumbu Y</label><select class="inspector-select" id="ySelect">${numeric.map(h=>`<option value="${escapeHtml(h)}" ${node.config.y===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}</select></div>`;
+        const col=state.dataset.headers[0]; return `<div class="inspector-section"><label>Kolom</label><select class="inspector-select" id="distributionColumn">${state.dataset.headers.map(h=>`<option value="${escapeHtml(h)}" ${node.config.column===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}</select><p class="inspector-help">Gunakan Chart untuk melihat distribusi nilai.</p></div>`;
     }
 
-
-    /* =====================================
-       8. URUTAN WORKFLOW
-    ===================================== */
-
-    const firstWidget =
-        names[0];
-
-
-    if (
-        firstWidget
-        &&
-        !dataSources.some(
-            source =>
-                firstWidget
-                    .toLowerCase()
-                    .includes(
-                        source.toLowerCase()
-                    )
-        )
-    ) {
-
-        messages.push(
-            "💡 Workflow sebaiknya dimulai dari widget sumber data."
-        );
-
+    function processDataNode(node, dataset) {
+        const key=node.name.toLowerCase();
+        if (!dataset) return null;
+        if (key.includes('select columns') && node.config.selected?.length) {
+            const keep=node.config.selected; return {headers:keep,data:dataset.data.map(r=>Object.fromEntries(keep.map(h=>[h,r[h]??''])))};
+        }
+        if (key.includes('data sampler')) {
+            const pct=node.config.sample || 80; const count=Math.max(1,Math.floor(dataset.data.length*pct/100)); const shuffled=[...dataset.data].sort(()=>Math.random()-.5).slice(0,count); return {headers:[...dataset.headers],data:shuffled};
+        }
+        if (key.includes('preprocess')) {
+            const mode=node.config.missingMode || 'median';
+            const rows=dataset.data.map(r=>({...r}));
+            if (mode==='drop') return {headers:[...dataset.headers],data:rows.filter(r=>dataset.headers.every(h=>String(r[h]).trim()!==''))};
+            dataset.headers.forEach(h=>{const vals=rows.map(r=>r[h]).filter(v=>v!==''); const type=inferType(vals); const replacement=type==='numeric' ? formatNumber(vals.map(v=>Number(String(v).replace(',','.'))).filter(Number.isFinite).sort((a,b)=>a-b)[Math.floor((vals.length-1)/2)]||0) : (Object.entries(vals.reduce((a,v)=>(a[v]=(a[v]||0)+1,a),{})).sort((a,b)=>b[1]-a[1])[0]?.[0] || ''); rows.forEach(r=>{if(String(r[h]).trim()==='') r[h]=replacement;});});
+            return {headers:[...dataset.headers],data:rows};
+        }
+        return dataset;
     }
 
-
-    /* =====================================
-       9. HASIL VALIDASI
-    ===================================== */
-
-    let html = "";
-
-
-    if (errors.length > 0) {
-
-        html += `
-            <div class="intelligence-error">
-
-                <strong>
-                    ⚠️ Hal yang perlu diperbaiki
-                </strong>
-
-                <ul>
-                    ${errors
-                        .map(
-                            item =>
-                                `<li>${item}</li>`
-                        )
-                        .join("")}
-                </ul>
-
-            </div>
-        `;
-
+    function topoOrder() {
+        const indeg=new Map(state.nodes.map(n=>[n.id,0]));
+        state.connections.forEach(c=>indeg.set(c.to,(indeg.get(c.to)||0)+1));
+        const queue=state.nodes.filter(n=>indeg.get(n.id)===0).slice(); const order=[];
+        while(queue.length){const n=queue.shift();order.push(n);state.connections.filter(c=>c.from===n.id).forEach(c=>{indeg.set(c.to,indeg.get(c.to)-1);if(indeg.get(c.to)===0)queue.push(state.nodes.find(x=>x.id===c.to));});}
+        return order.length===state.nodes.length?order:state.nodes;
     }
 
-
-    if (messages.length > 0) {
-
-        html += `
-            <div class="intelligence-info">
-
-                <strong>
-                    💡 Catatan
-                </strong>
-
-                <ul>
-                    ${messages
-                        .map(
-                            item =>
-                                `<li>${item}</li>`
-                        )
-                        .join("")}
-                </ul>
-
-            </div>
-        `;
-
+    function validateWorkflow() {
+        const errors=[]; const warnings=[]; const names=state.nodes.map(n=>n.name.toLowerCase());
+        if (!state.nodes.length) errors.push('Canvas masih kosong.');
+        if (!names.some(n=>n==='file'||n.includes('csv'))) errors.push('Tambahkan widget File sebagai sumber dataset.');
+        if (state.dataset && !names.some(n=>n.includes('data table'))) warnings.push('Tambahkan Data Table untuk inspeksi baris dan kolom.');
+        if (state.nodes.length>1 && !state.connections.length) errors.push('Belum ada koneksi antar-widget. Klik port output lalu port input.');
+        const flow=topoOrder(); const first=flow[0]?.name?.toLowerCase() || '';
+        if (first && !first.includes('file') && !first.includes('csv')) warnings.push('Workflow lebih mudah dipahami bila dimulai dari File.');
+        const container=document.getElementById('result-log');
+        container.innerHTML=`<div class="validation-result ${errors.length?'warning':'success'}"><strong>${errors.length?'Perlu diperbaiki':'Workflow valid secara struktur'}</strong><ul>${[...errors,...warnings].map(x=>`<li>${escapeHtml(x)}</li>`).join('') || '<li>Urutan widget dan koneksi terlihat konsisten.</li>'}</ul></div>`;
+        showResult('log'); setStatus(errors.length?'Periksa workflow':'Workflow valid','ready');
     }
 
-
-    if (suggestions.length > 0) {
-
-        html += `
-            <div class="intelligence-suggestions">
-
-                <strong>
-                    🤖 Rekomendasi Tutor
-                </strong>
-
-                <ul>
-                    ${suggestions
-                        .map(
-                            item =>
-                                `<li>${item}</li>`
-                        )
-                        .join("")}
-                </ul>
-
-            </div>
-        `;
-
+    function runWorkflow() {
+        if (!state.dataset) { setStatus('Muat CSV terlebih dahulu','error'); showResult('log'); document.getElementById('result-log').innerHTML='<div class="validation-result warning"><strong>Dataset belum tersedia</strong><p>Tambahkan widget File, klik node tersebut, lalu pilih file CSV.</p></div>'; return; }
+        setStatus('Menjalankan workflow…','working');
+        const order=topoOrder(); let current=state.dataset; const logs=[];
+        order.forEach(node=>{ current=processDataNode(node,current); logs.push(`${node.name}: ${current?.data?.length ?? 0} baris`); });
+        if (current) { state.dataset={headers:current.headers,data:current.data}; renderOverview(); }
+        const lastVisual=[...order].reverse().find(n=>/scatter|distribution|histogram|box plot/i.test(n.name));
+        if (lastVisual) { state.selectedNodeId=lastVisual.id; renderInspector(); renderChart(/distribution|histogram|box plot/i.test(lastVisual.name)?'distribution':'scatter'); }
+        document.getElementById('result-log').innerHTML=`<div class="run-summary"><strong>Workflow selesai</strong><span>${order.length} widget diproses</span><ol>${logs.map(l=>`<li>${escapeHtml(l)}</li>`).join('')}</ol></div>`;
+        showResult(lastVisual?'chart':'overview'); setStatus('Workflow selesai','ready');
     }
 
-
-    if (
-        errors.length === 0
-        &&
-        suggestions.length === 0
-    ) {
-
-        html = `
-            <div class="intelligence-success">
-
-                <strong>
-                    ✅ Workflow terlihat lengkap
-                </strong>
-
-                <p>
-                    Workflow memiliki sumber data,
-                    proses analisis, dan komponen yang
-                    diperlukan untuk melanjutkan analisis.
-                </p>
-
-            </div>
-        `;
-
+    function buildSampleWorkflow() {
+        state.nodes=[]; state.connections=[]; state.nextId=1; state.selectedNodeId=null;
+        const names=['File','Data Table','Select Columns','Distributions','Scatter Plot'];
+        const created=[];
+        names.forEach((name,i)=>{
+            const button=widgetButtons.find(b=>b.dataset.name.toLowerCase()===name.toLowerCase() || b.dataset.name.toLowerCase().includes(name.toLowerCase()));
+            if (button) created.push(addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output},{x:70+i*285,y:130+(i%2)*120},{skipAutoConnect:true}));
+        });
+        for(let i=0;i<created.length-1;i++) state.connections.push({id:'sample'+i,from:created[i].id,to:created[i+1].id});
+        renderNodes(); setStatus('Contoh EDA dibuat','ready');
     }
 
+    function clearWorkflow() { state.nodes=[]; state.connections=[]; state.selectedNodeId=null; state.nextId=1; state.dataset=null; state.datasetName=''; datasetChip.textContent='Dataset belum dimuat'; renderNodes(); renderInspector(); document.getElementById('result-overview').innerHTML='<div class="result-empty"><span>📊</span><strong>Hasil workflow akan muncul di sini</strong><small>Unggah CSV melalui widget File lalu klik Jalankan.</small></div>'; setStatus('Canvas dibersihkan','ready'); }
 
-    showValidation(
-        errors.length > 0
-            ? "warning"
-            : "success",
-
-        errors.length > 0
-            ? "🔎 Analisis Workflow"
-            : "✅ Analisis Workflow",
-
-        html
-    );
-
-}
-
-function getNextRecommendation() {
-
-    const names =
-        nodes.map(node => node.name);
-
-
-    if (nodes.length === 0) {
-
-        return {
-            name: "File",
-            reason:
-                "Workflow perlu dimulai dengan sumber data."
-        };
-
+    function saveWorkflow() { const blob=new Blob([JSON.stringify({nodes:state.nodes,connections:state.connections},null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orange-learn-workflow.json';a.click();URL.revokeObjectURL(a.href);setStatus('Workflow disimpan','ready'); }
+    function exportCsv() {
+        if (!state.dataset) { setStatus('Tidak ada dataset untuk diekspor','error'); return; }
+        const headers = state.dataset.headers;
+        const quote = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+        const csv = [headers.map(quote).join(','), ...state.dataset.data.map(r => headers.map(h => quote(r[h])).join(','))].join('\r\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'orange-learn-processed.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        setStatus('CSV berhasil diekspor','ready');
     }
 
+    function loadWorkflow(data) { state.nodes=data.nodes||[]; state.connections=data.connections||[]; state.nextId=Math.max(0,...state.nodes.map(n=>n.id||0))+1; renderNodes(); renderInspector(); setStatus('Workflow dimuat','ready'); }
 
-    const hasFile =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes("file")
-        );
+    function zoom(delta) { state.zoom=Math.max(.65,Math.min(1.6,state.zoom+delta)); viewport.style.transform=`scale(${state.zoom})`; viewport.style.transformOrigin='0 0'; zoomLabel.textContent=Math.round(state.zoom*100)+'%'; renderConnections(); }
 
+    widgetButtons.forEach(button=>button.addEventListener('click',()=>addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output})));
+    document.querySelectorAll('.toolbox-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.toolbox-tab').forEach(t=>t.classList.toggle('active',t===tab));filterTools();}));
+    document.getElementById('widgetSearch').addEventListener('input',filterTools);
+    function filterTools(){const q=document.getElementById('widgetSearch').value.toLowerCase().trim();const cat=document.querySelector('.toolbox-tab.active').dataset.cat;widgetButtons.forEach(b=>{const okCat=cat==='all'||classifyCategory(b.dataset.name,b.dataset.category)===cat;const okQ=!q||(b.dataset.name+' '+b.dataset.category).toLowerCase().includes(q);b.style.display=okCat&&okQ?'flex':'none';});}
 
-    if (!hasFile) {
+    csvInput.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;const node=state.nodes.find(n=>n.id===state.selectedNodeId&&n.name.toLowerCase()==='file')||state.nodes.find(n=>n.name.toLowerCase()==='file'); if(!node){setStatus('Tambahkan widget File','error');return;} const reader=new FileReader();reader.onload=()=>{try{loadDataset(file.name,parseCsv(String(reader.result||'')));showResult('overview');}catch(err){setStatus('CSV tidak dapat dibaca','error');document.getElementById('result-log').innerHTML=`<div class="validation-result warning"><strong>CSV gagal dibaca</strong><p>${escapeHtml(err.message)}</p></div>`;showResult('log');}};reader.readAsText(file);e.target.value='';});
+    document.getElementById('newWorkflowBtn').addEventListener('click',clearWorkflow);
+    document.getElementById('sampleWorkflowBtn').addEventListener('click',buildSampleWorkflow);
+    document.getElementById('clearBtn').addEventListener('click',clearWorkflow);
+    document.getElementById('validateBtn').addEventListener('click',validateWorkflow);
+    document.getElementById('runBtn').addEventListener('click',runWorkflow);
+    document.getElementById('saveWorkflowBtn').addEventListener('click',saveWorkflow);
+    document.getElementById('exportCsvBtn').addEventListener('click',exportCsv);
+    document.getElementById('loadWorkflowBtn').addEventListener('click',()=>workflowFileInput.click());
+    workflowFileInput.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{loadWorkflow(JSON.parse(String(r.result)));}catch{setStatus('File workflow tidak valid','error');}};r.readAsText(f);e.target.value='';});
+    document.getElementById('zoomInBtn').addEventListener('click',()=>zoom(.1));
+    document.getElementById('zoomOutBtn').addEventListener('click',()=>zoom(-.1));
+    document.getElementById('fitCanvasBtn').addEventListener('click',()=>{state.zoom=1;zoomLabel.textContent='100%';viewport.style.transform='scale(1)';renderConnections();});
 
-        return {
-            name: "File",
-            reason:
-                "Tambahkan File untuk memasukkan dataset."
-        };
+    canvas.addEventListener('click',e=>{if(e.target===canvas||e.target.classList.contains('orange-canvas-grid')){state.selectedNodeId=null;state.connectingFrom=null;renderNodes();renderInspector();setStatus('Siap','ready');}});
+    window.addEventListener('resize',renderConnections);
+    window.addEventListener('scroll',renderConnections,{passive:true});
 
-    }
-
-
-    const hasDataTable =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes("data table")
-        );
-
-
-    if (!hasDataTable) {
-
-        return {
-            name: "Data Table",
-            reason:
-                "Gunakan Data Table untuk melihat isi dataset."
-        };
-
-    }
-
-
-    const hasModel =
-        names.some(
-            name =>
-                [
-                    "Random Forest",
-                    "Tree",
-                    "kNN",
-                    "SVM",
-                    "Linear Regression"
-                ].some(
-                    model =>
-                        name
-                            .toLowerCase()
-                            .includes(
-                                model.toLowerCase()
-                            )
-                )
-        );
-
-
-    if (!hasModel) {
-
-        return {
-            name: "Random Forest",
-            reason:
-                "Tambahkan model machine learning untuk melakukan prediksi."
-        };
-
-    }
-
-
-    const hasTestScore =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes(
-                        "test & score"
-                    )
-        );
-
-
-    if (!hasTestScore) {
-
-        return {
-            name: "Test & Score",
-            reason:
-                "Gunakan Test & Score untuk mengukur performa model."
-        };
-
-    }
-
-
-    const hasConfusion =
-        names.some(
-            name =>
-                name
-                    .toLowerCase()
-                    .includes(
-                        "confusion matrix"
-                    )
-        );
-
-
-    if (!hasConfusion) {
-
-        return {
-            name: "Confusion Matrix",
-            reason:
-                "Gunakan Confusion Matrix untuk menganalisis hasil klasifikasi."
-        };
-
-    }
-
-
-    return {
-
-        name: "ROC Analysis",
-
-        reason:
-            "Workflow utama sudah lengkap. ROC Analysis dapat digunakan untuk analisis performa klasifikasi."
-
-    };
-
-}
-
-
-/* ==========================================
-   VALIDATION UI
-========================================== */
-
-function showValidation(
-    type,
-    title,
-    message
-) {
-
-    validationPanel.className =
-        "validation-panel " + type;
-
-
-    validationResult.innerHTML = `
-
-        <div class="validation-heading">
-            ${title}
-        </div>
-
-        <div class="validation-message">
-            ${message}
-        </div>
-
-    `;
-
-}
-
-loadGeneratedWorkflow();
+    renderNodes();
+    renderInspector();
+    setStatus('Siap','ready');
+})();
 </script>
-
-
 <script src="/js/app.js"></script>
 </body>
-
 </html>

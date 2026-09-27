@@ -104,21 +104,21 @@
                     </div>
 
                     <div class="materi-category">
-                        {{ item["kategori"] }}
+                        {{ item["kategori"]|clean }}
                     </div>
 
                     <h3>
-                        {{ item["judul"] }}
+                        {{ item["judul"]|clean }}
                     </h3>
 
                     <p>
-                        {{ item["deskripsi"] }}
+                        {{ item["deskripsi"]|clean }}
                     </p>
 
                     <div class="materi-footer">
 
                         <span class="level">
-                            {{ item["tingkat"] }}
+                            {{ item["tingkat"]|clean }}
                         </span>
 
                         <a

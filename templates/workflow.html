@@ -75,16 +75,16 @@
 
                     <div class="workflow-category">
 
-                        {{ item["kategori"] }}
+                        {{ item["kategori"]|clean }}
 
                     </div>
 
                     <h3>
-                        {{ item["nama"] }}
+                        {{ item["nama"]|clean }}
                     </h3>
 
                     <p>
-                        {{ item["deskripsi"] }}
+                        {{ item["deskripsi"]|clean }}
                     </p>
 
                     <div class="workflow-goal">
@@ -93,14 +93,14 @@
                             Tujuan:
                         </strong>
 
-                        {{ item["tujuan"] }}
+                        {{ item["tujuan"]|clean }}
 
                     </div>
 
                     <div class="workflow-bottom">
 
                         <span>
-                            {{ item["tingkat"] }}
+                            {{ item["tingkat"]|clean }}
                         </span>
 
                         <a

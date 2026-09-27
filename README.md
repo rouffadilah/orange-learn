@@ -28,3 +28,19 @@ AI Tutor menggunakan Google Gemini melalui `GEMINI_API_KEY`. Default model `gemi
 
 ## Panduan Fitur Visual
 Orange Learn kini menyediakan halaman `/fitur` untuk menjelaskan widget dan fitur Orange Data Mining melalui ilustrasi orisinal yang mengikuti struktur canvas, widget, port input-output, dan channel.
+
+## Workflow Builder visual + CSV
+
+Workflow Builder sekarang menyediakan canvas visual bergaya node-and-port seperti workflow desktop: widget dapat ditambah, dipindahkan, dihubungkan, disimpan, dimuat, divalidasi, dan dijalankan. Widget File mendukung upload CSV langsung dari browser.
+
+Fitur olah dataset yang tersedia pada builder:
+- Import CSV dengan delimiter koma, titik koma, atau tab
+- Preview Data Table
+- Profil kolom, tipe data, missing value, min/avg/max
+- Select Columns untuk memilih fitur dan target/class
+- Data Sampler untuk membuat subset data
+- Preprocess untuk menangani missing value
+- Distribution/Histogram sederhana
+- Scatter Plot dua variabel numerik
+- Export kembali menjadi CSV setelah transformasi
+- Dataset contoh `public/datasets/contoh_siswa.csv`

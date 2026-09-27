@@ -10,7 +10,7 @@
 </div></section></main></div>
 <script>
 const input=document.getElementById('messageInput'),sendButton=document.getElementById('sendButton'),chatMessages=document.getElementById('chatMessages'),generateWorkflowButton=document.getElementById('generateWorkflowButton'),modeLabel=document.getElementById('aiModeLabel'),newChatButton=document.getElementById('newChatButton');
-let conversation=[];let thinkingTimer=null;
+let conversation=[];let thinkingTimer=null;let thinkingStartedAt=0;let thinkingElapsedTimer=null;
 
 async function readApiResponse(response){
   const raw=await response.text();let data=null;
@@ -37,6 +37,7 @@ async function generateWorkflow(){
   const message=input.value.trim();
   if(!message){addMessage('Tuliskan tujuan analisis terlebih dahulu.','bot');return;}
   addMessage(message,'user');input.value='';showThinking('Merancang workflow',generateWorkflowButton);
+  await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,120)));
   try{
     const response=await fetch('/api/generate-workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});
     const data=await readApiResponse(response);
@@ -59,6 +60,7 @@ async function sendMessage(){
   if(!message||sendButton.disabled)return;
   addMessage(message,'user');input.value='';conversation.push({role:'user',content:message});
   showThinking('Menganalisis pertanyaan',sendButton);
+  await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,120)));
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),11000);
   try{
     const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,history:conversation.slice(-10)}),signal:controller.signal});
@@ -108,31 +110,44 @@ function inlineFormat(value){
 
 function cleanDisplayText(value){
   let s=String(value??'').replace(/\r\n?/g,'\n');
+  const repl={
+    '\\longrightarrow':'→','\\rightarrow':'→','\\to':'→','\\Rightarrow':'⇒','\\Longrightarrow':'⇒',
+    '\\leftarrow':'←','\\leftrightarrow':'↔','\\geq':'≥','\\leq':'≤','\\times':'×','\\cdot':'·','\\pm':'±','\\neq':'≠'
+  };
+  Object.entries(repl).forEach(([a,b])=>{s=s.split(a).join(b);});
+  for(let i=0;i<4;i++) s=s.replace(/\\(?:text|mathrm|mathbf|operatorname|textrm|textit)\s*\{([^{}]*)\}/g,'$1');
   s=s.replace(/\$\$(.*?)\$\$/gs,'$1').replace(/\$(.*?)\$/gs,'$1');
-  s=s.replace(/\\(text|mathrm|mathbf)\{([^{}]*)\}/g,'$2');
-  s=s.replace(/\\(rightarrow|to)\b/g,'→').replace(/\\(Rightarrow)\b/g,'⇒').replace(/\\(leftarrow)\b/g,'←').replace(/\\(leftrightarrow)\b/g,'↔');
-  s=s.replace(/\\(geq|leq|times|cdot|pm)\b/g,m=>({'\\geq':'≥','\\leq':'≤','\\times':'×','\\cdot':'·','\\pm':'±'}[m]||m));
-  s=s.replace(/\\left|\\right|\\\(|\\\)|\\\[|\\\]/g,'');
-  s=s.replace(/^\s*---\s*$/gm,'');
-  s=s.replace(/\\\\+/g,' ');
+  s=s.replace(/\\\((.*?)\\\)/gs,'$1').replace(/\\\[(.*?)\\\]/gs,'$1');
+  s=s.replace(/\\left|\\right/g,'');
+  s=s.split('---').join('');
+  s=s.replace(/^\s*#{1,6}\s+/gm,'');
+  s=s.replace(/^\s*\*+\s*$/gm,'');
+  s=s.replace(/^\s*[*•]\s+/gm,'• ');
+  s=s.replace(/^\s*\d+[.)]\s*$/gm,'');
+  s=s.replace(/\[([^\]]+)\]\([^)]*\)/g,'$1');
+  s=s.replace(/\*\*(.*?)\*\*/gs,'$1').replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g,'$1$2');
+  s=s.replace(/`([^`]+)`/g,'$1');
+  s=s.replace(/\\+/g,' ');
   s=s.replace(/[{}]/g,'');
-  s=s.replace(/\n{3,}/g,'\n\n');
   s=s.replace(/[ \t]{2,}/g,' ');
+  s=s.replace(/\n{3,}/g,'\n\n');
   return s.trim();
 }
-
 function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function scrollChat(){chatMessages.scrollTop=chatMessages.scrollHeight;}
 
 function showThinking(label,button){
   removeThinking();setLoading(true,button);
   const node=document.createElement('div');node.className='message bot thinking-message';node.id='aiThinking';
-  node.innerHTML=`<div class="message-avatar thinking-avatar">🤖</div><div class="message-content thinking-content"><strong>orange-learn AI</strong><div class="thinking-card"><span id="thinkingLabel">${escapeHtml(label)}</span><span class="thinking-dots"><i></i><i></i><i></i></span></div><div class="thinking-subtext">Jawaban sedang disiapkan. Mohon tunggu sebentar…</div></div>`;
+  node.innerHTML=`<div class="message-avatar thinking-avatar">🤖</div><div class="message-content thinking-content"><strong>orange-learn AI</strong><div class="thinking-card"><span id="thinkingLabel">${escapeHtml(label)}</span><span class="thinking-dots"><i></i><i></i><i></i></span></div><div class="thinking-subtext">AI sedang bekerja <span id="thinkingElapsed">0 dtk</span></div></div>`;
   chatMessages.appendChild(node);scrollChat();
-  const stages=['Menganalisis pertanyaan','Mencari konteks widget','Menyusun langkah workflow','Merangkum jawaban'];let idx=Math.max(0,stages.indexOf(label));
-  thinkingTimer=setInterval(()=>{idx=(idx+1)%stages.length;const target=document.getElementById('thinkingLabel');if(target)target.textContent=stages[idx];},900);
+  const stages=['Menganalisis pertanyaan','Mencari konteks widget','Menyusun langkah workflow','Memeriksa kualitas jawaban','Merangkum jawaban'];let idx=Math.max(0,stages.indexOf(label));
+  thinkingStartedAt=Date.now();
+  thinkingTimer=setInterval(()=>{idx=(idx+1)%stages.length;const target=document.getElementById('thinkingLabel');if(target)target.textContent=stages[idx];},850);
+  thinkingElapsedTimer=setInterval(()=>{const t=document.getElementById('thinkingElapsed');if(t)t.textContent=Math.floor((Date.now()-thinkingStartedAt)/1000)+' dtk';},500);
 }
-function removeThinking(){if(thinkingTimer){clearInterval(thinkingTimer);thinkingTimer=null;}document.getElementById('aiThinking')?.remove();}
+
+function removeThinking(){if(thinkingTimer){clearInterval(thinkingTimer);thinkingTimer=null;}if(thinkingElapsedTimer){clearInterval(thinkingElapsedTimer);thinkingElapsedTimer=null;}document.getElementById('aiThinking')?.remove();}
 function setLoading(loading,button){button.disabled=loading;if(button===sendButton){button.setAttribute('aria-busy',loading?'true':'false');button.textContent=loading?'…':'➤';}else{button.textContent=loading?'…':'🛠️';}}
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
 </script><script src="/js/app.js"></script></body></html>
