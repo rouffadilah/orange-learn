@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, session
 import json
 import os
 import re
@@ -16,6 +16,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__, static_folder=None)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'orange-learn-local-dev-secret')
 
 
 def get_supabase() -> Client:
@@ -241,6 +242,56 @@ def _valid_gemini_key(value: str | None) -> bool:
         return False
     value = value.strip()
     return len(value) >= 20 and "YOUR_" not in value.upper()
+
+
+
+GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
+
+
+def google_oauth_config() -> dict[str, str | bool]:
+    client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
+    redirect_uri = (os.getenv("GOOGLE_OAUTH_REDIRECT_URI") or "").strip()
+    if not redirect_uri:
+        redirect_uri = request.url_root.rstrip("/") + "/api/google/oauth/callback"
+    ready = bool(client_id and client_secret and os.getenv("FLASK_SECRET_KEY"))
+    return {
+        "enabled": ready,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+    }
+
+
+def google_http_json(url: str, *, method: str = "GET", payload: dict | None = None,
+                     access_token: str | None = None, timeout: int = 12) -> dict:
+    body = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Content-Type": "application/json"}
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("utf-8")
+        return json.loads(raw) if raw else {}
+
+
+def google_form_post(url: str, payload: dict, *, timeout: int = 12) -> dict:
+    body = urllib.parse.urlencode(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode("utf-8")
+        return json.loads(raw) if raw else {}
+
+
+def google_columns(n: int) -> str:
+    out = ""
+    while n:
+        n, rem = divmod(n - 1, 26)
+        out = chr(65 + rem) + out
+    return out or "A"
 
 
 def _gemini_contents(history: list[dict], question: str) -> list[dict]:
@@ -535,6 +586,150 @@ def ai_status():
         "knowledge_items": len(load_orange_knowledge()),
         "workflow_templates": len(load_workflow_templates()),
     })
+
+
+
+@app.route("/api/google/config")
+def google_config_route():
+    cfg = google_oauth_config()
+    return jsonify({"enabled": cfg["enabled"], "client_id": cfg["client_id"], "redirect_uri": cfg["redirect_uri"]})
+
+
+@app.route("/api/google/oauth/start")
+def google_oauth_start():
+    cfg = google_oauth_config()
+    if not cfg["enabled"]:
+        return jsonify({"success": False, "message": "Integrasi Google belum dikonfigurasi di server."}), 503
+    state = os.urandom(24).hex()
+    session["google_oauth_state"] = state
+    params = {
+        "client_id": cfg["client_id"],
+        "redirect_uri": cfg["redirect_uri"],
+        "response_type": "code",
+        "scope": " ".join(GOOGLE_SCOPES),
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+    }
+    return redirect("https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params))
+
+
+@app.route("/api/google/oauth/callback")
+def google_oauth_callback():
+    cfg = google_oauth_config()
+    if not cfg["enabled"]:
+        return "<h3>Integrasi Google belum dikonfigurasi.</h3>", 503
+    state = request.args.get("state", "")
+    expected = session.pop("google_oauth_state", "")
+    if not state or state != expected:
+        return "<h3>Autorisasi Google tidak valid. Silakan coba lagi.</h3>", 400
+    code = request.args.get("code", "")
+    if not code:
+        return "<h3>Autorisasi Google dibatalkan atau gagal.</h3>", 400
+    try:
+        token = google_form_post("https://oauth2.googleapis.com/token", {
+            "code": code,
+            "client_id": cfg["client_id"],
+            "client_secret": cfg["client_secret"],
+            "redirect_uri": cfg["redirect_uri"],
+            "grant_type": "authorization_code",
+        })
+        access_token = token.get("access_token")
+        if not access_token:
+            raise RuntimeError(token.get("error_description") or token.get("error") or "Token Google tidak tersedia")
+        token_json = json.dumps(access_token)
+        origin_json = json.dumps(request.url_root.rstrip("/"))
+        return f"""<!doctype html><html><body><script>
+const accessToken = {token_json};
+const targetOrigin = {origin_json};
+if (window.opener) window.opener.postMessage({{type:'orange-learn-google-auth',accessToken}}, targetOrigin);
+window.close();
+</script><p>Autorisasi Google berhasil. Jendela ini bisa ditutup.</p></body></html>"""
+    except Exception as exc:
+        return f"<h3>Autorisasi Google gagal</h3><p>{escape_html_server(str(exc)[:400])}</p>", 502
+
+
+def escape_html_server(value: str) -> str:
+    return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+@app.route("/api/export/google", methods=["POST"])
+def export_google():
+    auth = request.headers.get("Authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return jsonify({"success": False, "message": "Otorisasi Google belum tersedia."}), 401
+    access_token = auth.split(" ", 1)[1].strip()
+    if not access_token:
+        return jsonify({"success": False, "message": "Token Google kosong."}), 401
+
+    data = request.get_json(silent=True) or {}
+    kind = str(data.get("kind", "sheets")).lower()
+    title = str(data.get("title", "orange-learn export")).strip()[:120] or "orange-learn export"
+    try:
+        if kind == "docs":
+            content = clean_display_text(str(data.get("content", "")))
+            created = google_http_json(
+                "https://docs.googleapis.com/v1/documents",
+                method="POST", payload={"title": title}, access_token=access_token,
+            )
+            document_id = created.get("documentId")
+            if not document_id:
+                raise RuntimeError("Google Docs tidak mengembalikan documentId.")
+            text_body = (content or "orange-learn") + "\n"
+            google_http_json(
+                f"https://docs.googleapis.com/v1/documents/{document_id}:batchUpdate",
+                method="POST",
+                payload={"requests": [{"insertText": {"location": {"index": 1}, "text": text_body}}]},
+                access_token=access_token,
+            )
+            return jsonify({"success": True, "kind": "docs", "url": f"https://docs.google.com/document/d/{document_id}/edit", "title": title})
+
+        headers = data.get("headers") or []
+        rows = data.get("rows") or []
+        if not headers and data.get("content") is not None:
+            lines = clean_display_text(str(data.get("content", ""))).splitlines()
+            headers = ["Bagian", "Isi"]
+            rows = [[str(i + 1), line] for i, line in enumerate(lines) if line.strip()]
+        if not headers:
+            headers = ["orange-learn"]
+        sheet = google_http_json(
+            "https://sheets.googleapis.com/v4/spreadsheets",
+            method="POST", payload={"properties": {"title": title}}, access_token=access_token,
+        )
+        spreadsheet_id = sheet.get("spreadsheetId")
+        if not spreadsheet_id:
+            raise RuntimeError("Google Sheets tidak mengembalikan spreadsheetId.")
+        values = [headers] + rows
+        end_col = google_columns(max(len(headers), 1))
+        end_row = max(len(values), 1)
+        range_a1 = f"Sheet1!A1:{end_col}{end_row}"
+        google_http_json(
+            f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{urllib.parse.quote(range_a1, safe='!')}",
+            method="PUT",
+            payload={"range": range_a1, "majorDimension": "ROWS", "values": values, "valueInputOption": "USER_ENTERED"},
+            access_token=access_token,
+        )
+        # Freeze and emphasize the header row.
+        first_sheet_id = ((sheet.get("sheets") or [{}])[0].get("properties") or {}).get("sheetId", 0)
+        google_http_json(
+            f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate",
+            method="POST",
+            payload={"requests": [
+                {"updateSheetProperties": {"properties": {"sheetId": first_sheet_id, "gridProperties": {"frozenRowCount": 1}}, "fields": "gridProperties.frozenRowCount"}},
+                {"repeatCell": {"range": {"sheetId": first_sheet_id, "startRowIndex": 0, "endRowIndex": 1}, "cell": {"userEnteredFormat": {"textFormat": {"bold": True}}}, "fields": "userEnteredFormat.textFormat.bold"}},
+            ]},
+            access_token=access_token,
+        )
+        return jsonify({"success": True, "kind": "sheets", "url": sheet.get("spreadsheetUrl") or f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit", "title": title})
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(body); msg = parsed.get("error", {}).get("message") or body
+        except Exception:
+            msg = body
+        return jsonify({"success": False, "message": f"Google API HTTP {exc.code}: {msg[:500]}"}), 502
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)[:500]}), 502
 
 
 @app.route("/api/chat", methods=["POST"])

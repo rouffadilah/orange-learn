@@ -51,7 +51,9 @@ function createWorkflowResponse(data){return `<div class="workflow-result"><div 
 function addWorkflowMessage(data){
   const message=document.createElement('div');message.className='message bot';
   message.innerHTML=`<div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong>${createWorkflowResponse(data)}<button class="use-workflow-button" type="button">🚀 Gunakan Workflow</button></div>`;
-  message.querySelector('button').addEventListener('click',()=>useGeneratedWorkflow(data.widgets));chatMessages.appendChild(message);scrollChat();
+  message.querySelector('button').addEventListener('click',()=>useGeneratedWorkflow(data.widgets));chatMessages.appendChild(message);
+  if(type==='bot'){message.querySelectorAll('.ai-export-btn').forEach(btn=>btn.addEventListener('click',()=>exportAiToGoogle(btn.dataset.export,text)));}
+  scrollChat();
 }
 function useGeneratedWorkflow(widgets){localStorage.setItem('orangeGeneratedWorkflow',JSON.stringify(widgets));window.location.href='/workflow/builder';}
 
@@ -73,13 +75,39 @@ async function sendMessage(){
   }finally{clearTimeout(timer);removeThinking();setLoading(false,sendButton);}
 }
 
+
+async function googleAccessToken(){
+  if(window.orangeGoogleToken)return window.orangeGoogleToken;
+  const cfg=await fetch('/api/google/config',{cache:'no-store'}).then(readApiResponse);
+  if(!cfg.enabled)throw new Error('Integrasi Google belum dikonfigurasi di server.');
+  return new Promise((resolve,reject)=>{
+    const popup=window.open('/api/google/oauth/start','orangeLearnGoogleAuth','width=520,height=680');
+    if(!popup){reject(new Error('Popup Google diblokir browser.'));return;}
+    const timer=setTimeout(()=>{window.removeEventListener('message',onMessage);reject(new Error('Autorisasi Google timeout.'));},90000);
+    function onMessage(event){if(event.origin!==window.location.origin)return;if(event.data?.type==='orange-learn-google-auth'&&event.data.accessToken){window.orangeGoogleToken=event.data.accessToken;clearTimeout(timer);window.removeEventListener('message',onMessage);resolve(event.data.accessToken);}}
+    window.addEventListener('message',onMessage);
+  });
+}
+async function exportAiToGoogle(kind,content){
+  try{
+    const token=await googleAccessToken();
+    const payload={kind,title:kind==='docs'?'orange-learn • Jawaban AI':'orange-learn • Catatan AI'};
+    if(kind==='docs')payload.content=cleanDisplayText(content);
+    else {const lines=cleanDisplayText(content).split(/\n+/).filter(Boolean);payload.headers=['Bagian','Isi'];payload.rows=lines.map((line,i)=>[String(i+1),line]);}
+    const response=await fetch('/api/export/google',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+    const data=await readApiResponse(response);window.open(data.url,'_blank','noopener');
+  }catch(err){addMessage(`Ekspor Google gagal: ${err.message}`,'bot','local');}
+}
+
 function addMessage(text,type,mode=''){
   const message=document.createElement('div');message.className=`message ${type}`;
   const avatar=type==='bot'?'🤖':'👤',name=type==='bot'?'orange-learn AI':'Anda';
   const modeChip=type==='bot'&&mode?`<span class="ai-mode-chip">${mode==='expert'?'Gemini AI':'Knowledge Base'}</span>`:'';
   const body=type==='bot'?renderAIHtml(text):`<p>${escapeHtml(text)}</p>`;
-  message.innerHTML=`<div class="message-avatar">${avatar}</div><div class="message-content"><strong>${name}${modeChip}</strong><div class="ai-rich-text">${body}</div></div>`;
-  chatMessages.appendChild(message);scrollChat();
+  message.innerHTML=`<div class="message-avatar">${avatar}</div><div class="message-content"><strong>${name}${modeChip}</strong><div class="ai-rich-text">${body}</div>${type==='bot' ? `<div class="ai-export-actions"><button type="button" class="ai-export-btn" data-export="docs">□ Google Docs</button><button type="button" class="ai-export-btn" data-export="sheets">▦ Google Sheets</button></div>` : ``}</div>`;
+  chatMessages.appendChild(message);
+  if(type==='bot'){message.querySelectorAll('.ai-export-btn').forEach(btn=>btn.addEventListener('click',()=>exportAiToGoogle(btn.dataset.export,text)));}
+  scrollChat();
 }
 
 function renderAIHtml(value){

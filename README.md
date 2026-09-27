@@ -44,3 +44,7 @@ Fitur olah dataset yang tersedia pada builder:
 - Scatter Plot dua variabel numerik
 - Export kembali menjadi CSV setelah transformasi
 - Dataset contoh `public/datasets/contoh_siswa.csv`
+
+
+## Integrasi Google
+Lihat `GOOGLE_EXPORT_SETUP.md` untuk mengaktifkan ekspor jawaban AI ke Google Docs dan dataset/workflow ke Google Sheets.

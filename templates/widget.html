@@ -115,8 +115,9 @@
 
                     <div class="widget-top">
 
-                        <div class="widget-icon">
-                            🧩
+                        <div class="widget-icon simple-widget-icon" aria-hidden="true">
+                            {% set n = item["nama"]|lower %}
+                            {% if n == "file" %}□{% elif "csv" in n %}▤{% elif "data table" in n %}▦{% elif "sql" in n %}◍{% elif "scatter" in n %}⊙{% elif "distribution" in n %}▥{% elif "tree" in n %}⌘{% elif "random forest" in n %}▦{% elif "pca" in n %}◒{% else %}◉{% endif %}
                         </div>
 
                         <span class="widget-level">

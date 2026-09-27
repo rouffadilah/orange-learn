@@ -47,7 +47,9 @@
                 <div class="toolbox-list orange-scroll" id="toolboxList">
                     {% for item in widget %}
                     <button class="orange-tool-item" data-id="{{ item['id'] }}" data-name="{{ item['nama']|e }}" data-category="{{ item['kategori']|e }}" data-input="{{ item['input_data']|e }}" data-output="{{ item['output_data']|e }}">
-                        <span class="orange-tool-icon">{{ '📁' if item['nama']|lower == 'file' else '▦' if 'data table' in item['nama']|lower else '📈' if item['kategori'] == 'Visualize' else '🤖' if item['kategori'] == 'Model' else '🧩' }}</span>
+                        <span class="orange-tool-icon simple-tool-icon" aria-hidden="true">
+                            {% set n = item['nama']|lower %}
+                            {% if n == 'file' %}□{% elif 'csv' in n %}▤{% elif 'data table' in n %}▦{% elif 'scatter' in n %}⊙{% elif 'distribution' in n %}▥{% elif 'box plot' in n %}▤{% elif 'tree' in n %}⌘{% elif 'random forest' in n %}▦{% elif 'pca' in n %}◒{% elif 'k-means' in n %}◌{% elif 'linear regression' in n %}╱{% elif item['kategori'] == 'Model' %}M{% elif item['kategori'] == 'Visualize' %}V{% else %}D{% endif %}</span>
                         <span class="orange-tool-copy"><strong>{{ item['nama'] }}</strong><small>{{ item['kategori'] }}</small></span>
                         <span class="orange-tool-add">＋</span>
                     </button>
@@ -62,30 +64,64 @@
                         <button class="canvas-action" id="sampleWorkflowBtn">✨ Contoh EDA</button>
                         <button class="canvas-action" id="loadWorkflowBtn">↥ Muat</button>
                         <button class="canvas-action" id="saveWorkflowBtn">↧ Simpan</button>
-                        <button class="canvas-action" id="exportCsvBtn">⇩ CSV</button>
+                        <button class="canvas-action" id="exportCsvBtn">⇩ CSV</button><button class="canvas-action google-action" id="exportSheetBtn">▦ Google Sheets</button><button class="canvas-action google-action" id="exportReportBtn">□ Google Docs</button>
                     </div>
                     <div class="canvas-toolbar-right">
                         <span class="canvas-chip" id="datasetChip">Dataset belum dimuat</span>
-                        <button class="canvas-action" id="fitCanvasBtn">Fit</button>
-                        <button class="canvas-action" id="zoomOutBtn">−</button>
-                        <span class="zoom-label" id="zoomLabel">100%</span>
-                        <button class="canvas-action" id="zoomInBtn">＋</button>
+                        <div class="canvas-tool-group" aria-label="Tampilan canvas">
+                            <button class="canvas-action compact-action" id="fitCanvasBtn" title="Sesuaikan semua node ke area kerja">Fit</button>
+                            <button class="canvas-action compact-action" id="resetViewBtn" title="Kembali ke tampilan 100%">100%</button>
+                            <button class="canvas-action compact-action" id="zoomOutBtn" title="Zoom out">−</button>
+                            <span class="zoom-label" id="zoomLabel">100%</span>
+                            <button class="canvas-action compact-action" id="zoomInBtn" title="Zoom in">＋</button>
+                        </div>
+                        <button class="canvas-action" id="canvasCustomizeBtn" title="Kustomisasi area kerja">⚙ Canvas</button>
+                        <button class="canvas-action" id="toggleToolboxBtn" title="Tampilkan/sembunyikan toolbox">◧ Toolbox</button>
+                        <button class="canvas-action" id="toggleInspectorBtn" title="Tampilkan/sembunyikan inspector">◨ Inspector</button>
                         <button class="canvas-action" id="clearBtn">🗑</button>
                         <button class="canvas-action" id="validateBtn">✓ Cek</button>
                         <button class="canvas-action primary" id="runBtn">▶ Jalankan</button>
                     </div>
                 </div>
 
-                <div class="orange-canvas" id="workflowCanvas">
-                    <svg class="orange-connections" id="connectionLayer" aria-hidden="true"></svg>
-                    <div class="orange-canvas-grid"></div>
-                    <div class="orange-canvas-viewport" id="canvasViewport">
-                        <div class="orange-canvas-empty" id="canvasEmpty">
-                            <div class="empty-orb">◌</div>
-                            <h3>Canvas workflow</h3>
-                            <p>Tambahkan <strong>File</strong> untuk memuat CSV, lalu hubungkan widget dengan port seperti Orange Data Mining.</p>
-                            <div class="empty-hint"><span>Input</span> → <span>Transform</span> → <span>Visualize</span> / <span>Model</span> → <span>Evaluate</span></div>
+                <div class="orange-canvas" id="workflowCanvas" tabindex="0" aria-label="Area kerja workflow">
+                    <div class="orange-canvas-hud">
+                        <span class="canvas-hud-chip" id="workspaceModeChip">Pan: drag area kosong</span>
+                        <span class="canvas-hud-chip" id="snapChip">Snap ON</span>
+                    </div>
+                    <div class="orange-canvas-world" id="canvasWorld">
+                        <div class="orange-canvas-grid" id="canvasGrid"></div>
+                        <svg class="orange-connections" id="connectionLayer" aria-hidden="true"></svg>
+                        <div class="orange-canvas-viewport" id="canvasViewport">
+                            <div class="orange-canvas-empty" id="canvasEmpty">
+                                <div class="empty-orb">◌</div>
+                                <h3>Canvas workflow</h3>
+                                <p>Tambahkan <strong>File</strong> untuk memuat CSV, lalu hubungkan widget dengan port seperti Orange Data Mining.</p>
+                                <div class="empty-hint"><span>Input</span> → <span>Transform</span> → <span>Visualize</span> / <span>Model</span> → <span>Evaluate</span></div>
+                            </div>
                         </div>
+                    </div>
+                    <div class="canvas-customize-popover" id="canvasCustomizePopover" hidden>
+                        <div class="customize-title">
+                            <div><strong>Area Kerja</strong><small>Atur tampilan dan navigasi canvas.</small></div>
+                            <button class="customize-close" id="canvasCustomizeClose" type="button" aria-label="Tutup">×</button>
+                        </div>
+                        <div class="customize-row">
+                            <label for="gridSizeSelect">Ukuran grid</label>
+                            <select id="gridSizeSelect" class="inspector-select">
+                                <option value="14">Kecil</option>
+                                <option value="20" selected>Normal</option>
+                                <option value="28">Besar</option>
+                                <option value="36">Sangat besar</option>
+                            </select>
+                        </div>
+                        <div class="customize-row toggle-row"><span>Grid</span><button type="button" class="mini-toggle active" id="gridToggleBtn" aria-pressed="true">ON</button></div>
+                        <div class="customize-row toggle-row"><span>Snap ke grid</span><button type="button" class="mini-toggle active" id="snapToggleBtn" aria-pressed="true">ON</button></div>
+                        <div class="customize-actions">
+                            <button class="canvas-action" id="centerCanvasBtn" type="button">⌖ Pusatkan</button>
+                            <button class="canvas-action" id="resetCanvasPrefsBtn" type="button">↺ Reset tampilan</button>
+                        </div>
+                        <div class="shortcut-box"><strong>Shortcut</strong><span>Wheel = zoom · drag kosong = pan · Space + drag = pan · 0 = fit · 1 = 100% · G = grid · S = snap</span></div>
                     </div>
                 </div>
 
@@ -102,7 +138,7 @@
                     </div>
                     <div class="result-view" id="result-table"></div>
                     <div class="result-view" id="result-profile"></div>
-                    <div class="result-view" id="result-chart"></div>
+                    <div class="result-view" id="result-chart"><div class="result-empty"><span>⊙</span><strong>Pilih output grafik</strong><small>Scatter, Distribution, Box Plot, Bar, atau Line tersedia setelah data dimuat.</small></div></div>
                     <div class="result-view" id="result-log"></div>
                 </div>
             </section>
@@ -147,6 +183,14 @@
     const zoomLabel = document.getElementById('zoomLabel');
     const csvInput = document.getElementById('csvInput');
     const workflowFileInput = document.getElementById('workflowFileInput');
+    const world = document.getElementById('canvasWorld');
+    const canvasGrid = document.getElementById('canvasGrid');
+    const workspaceModeChip = document.getElementById('workspaceModeChip');
+    const snapChip = document.getElementById('snapChip');
+    const customizePopover = document.getElementById('canvasCustomizePopover');
+    const gridSizeSelect = document.getElementById('gridSizeSelect');
+    const gridToggleBtn = document.getElementById('gridToggleBtn');
+    const snapToggleBtn = document.getElementById('snapToggleBtn');
 
     const state = {
         nodes: [],
@@ -157,6 +201,11 @@
         zoom: 1,
         panX: 0,
         panY: 0,
+        snap: true,
+        grid: true,
+        gridSize: 20,
+        minZoom: 0.5,
+        maxZoom: 2.0,
         dataset: null,
         datasetName: '',
         lastMessage: ''
@@ -318,37 +367,140 @@
     }
 
     function beginDrag(event, el, node) {
-        const rect = canvas.getBoundingClientRect();
+        event.preventDefault();
         const startX = event.clientX;
         const startY = event.clientY;
         const originX = node.x;
         const originY = node.y;
         const move = ev => {
-            node.x = Math.max(10, originX + (ev.clientX - startX) / state.zoom);
-            node.y = Math.max(10, originY + (ev.clientY - startY) / state.zoom);
+            let x = originX + (ev.clientX - startX) / state.zoom;
+            let y = originY + (ev.clientY - startY) / state.zoom;
+            if (state.snap) { x = Math.round(x / state.gridSize) * state.gridSize; y = Math.round(y / state.gridSize) * state.gridSize; }
+            node.x = Math.max(10, x);
+            node.y = Math.max(10, y);
             el.style.left = node.x + 'px';
             el.style.top = node.y + 'px';
             renderConnections();
         };
-        const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+        const up = () => {
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('mouseup', up);
+            setStatus(`${node.name} dipindahkan`, 'ready');
+        };
         window.addEventListener('mousemove', move);
         window.addEventListener('mouseup', up);
     }
 
     function renderConnections() {
-        const rect = viewport.getBoundingClientRect();
-        connectionLayer.setAttribute('viewBox', `0 0 ${Math.max(viewport.scrollWidth,rect.width)} ${Math.max(viewport.scrollHeight,rect.height)}`);
+        const width = world?.offsetWidth || 2600;
+        const height = world?.offsetHeight || 1800;
+        connectionLayer.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        connectionLayer.setAttribute('width', width);
+        connectionLayer.setAttribute('height', height);
         connectionLayer.innerHTML = state.connections.map(conn => {
-            const from = state.nodes.find(n=>n.id===conn.from);
-            const to = state.nodes.find(n=>n.id===conn.to);
+            const from = state.nodes.find(n => n.id === conn.from);
+            const to = state.nodes.find(n => n.id === conn.to);
             if (!from || !to) return '';
             const x1 = from.x + 208;
             const y1 = from.y + 62;
             const x2 = to.x;
             const y2 = to.y + 62;
             const dx = Math.max(55, Math.abs(x2-x1)*0.45);
-            return `<path class="orange-connection" d="M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}" />`;
+            const selected = state.selectedNodeId === from.id || state.selectedNodeId === to.id ? ' selected' : '';
+            return `<path class="orange-connection${selected}" d="M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}" />`;
         }).join('');
+    }
+
+    function applyCanvasView(persist=true) {
+        world.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+        zoomLabel.textContent = Math.round(state.zoom * 100) + '%';
+        canvasGrid.style.display = state.grid ? 'block' : 'none';
+        canvasGrid.style.backgroundSize = `${state.gridSize}px ${state.gridSize}px`;
+        snapChip.textContent = state.snap ? 'Snap ON' : 'Snap OFF';
+        snapChip.classList.toggle('off', !state.snap);
+        renderConnections();
+        if (persist) localStorage.setItem('orangeLearnCanvasPrefs', JSON.stringify({zoom:state.zoom,panX:state.panX,panY:state.panY,snap:state.snap,grid:state.grid,gridSize:state.gridSize}));
+    }
+
+    function clampZoom(value) { return Math.max(state.minZoom, Math.min(state.maxZoom, Number(value))); }
+
+    function zoomTo(value, clientX=null, clientY=null) {
+        const next = clampZoom(value);
+        if (next === state.zoom) return;
+        if (clientX !== null && clientY !== null) {
+            const rect = canvas.getBoundingClientRect();
+            const sx = clientX - rect.left;
+            const sy = clientY - rect.top;
+            const worldX = (sx - state.panX) / state.zoom;
+            const worldY = (sy - state.panY) / state.zoom;
+            state.zoom = next;
+            state.panX = sx - worldX * state.zoom;
+            state.panY = sy - worldY * state.zoom;
+        } else {
+            state.zoom = next;
+        }
+        applyCanvasView();
+    }
+
+    function zoom(delta, anchorEvent=null) {
+        if (anchorEvent) zoomTo(state.zoom + delta, anchorEvent.clientX, anchorEvent.clientY);
+        else zoomTo(state.zoom + delta);
+    }
+
+    function centerContent() {
+        if (!state.nodes.length) {
+            state.panX = 30; state.panY = 30;
+            applyCanvasView();
+            return;
+        }
+        const canvasRect = canvas.getBoundingClientRect();
+        const pad = 80;
+        const minX = Math.min(...state.nodes.map(n => n.x));
+        const minY = Math.min(...state.nodes.map(n => n.y));
+        const maxX = Math.max(...state.nodes.map(n => n.x + 208));
+        const maxY = Math.max(...state.nodes.map(n => n.y + 124));
+        const contentW = Math.max(208, maxX - minX);
+        const contentH = Math.max(124, maxY - minY);
+        state.zoom = clampZoom(Math.min((canvasRect.width-pad*2)/contentW, (canvasRect.height-pad*2)/contentH));
+        state.panX = Math.round((canvasRect.width - contentW * state.zoom) / 2 - minX * state.zoom);
+        state.panY = Math.round((canvasRect.height - contentH * state.zoom) / 2 - minY * state.zoom);
+        applyCanvasView();
+    }
+
+    function resetView() {
+        state.zoom = 1; state.panX = 30; state.panY = 30; applyCanvasView();
+    }
+
+    function loadCanvasPrefs() {
+        try {
+            const prefs = JSON.parse(localStorage.getItem('orangeLearnCanvasPrefs') || 'null');
+            if (!prefs) return;
+            state.zoom = clampZoom(prefs.zoom ?? state.zoom);
+            state.panX = Number.isFinite(prefs.panX) ? prefs.panX : state.panX;
+            state.panY = Number.isFinite(prefs.panY) ? prefs.panY : state.panY;
+            state.snap = prefs.snap !== false;
+            state.grid = prefs.grid !== false;
+            state.gridSize = [14,20,28,36].includes(Number(prefs.gridSize)) ? Number(prefs.gridSize) : 20;
+            gridSizeSelect.value = String(state.gridSize);
+        } catch (_) {}
+    }
+
+    function togglePopover(force=null) {
+        const open = force ?? customizePopover.hidden;
+        customizePopover.hidden = !open;
+    }
+
+    function setToggleButton(button, enabled) {
+        button.classList.toggle('active', enabled);
+        button.textContent = enabled ? 'ON' : 'OFF';
+        button.setAttribute('aria-pressed', String(enabled));
+    }
+
+    function updateCanvasPreferences() {
+        setToggleButton(gridToggleBtn, state.grid);
+        setToggleButton(snapToggleBtn, state.snap);
+        gridSizeSelect.value = String(state.gridSize);
+        applyCanvasView();
     }
 
     function showResult(name) {
@@ -466,32 +618,52 @@
         const profile=profileDataset(state.dataset);
         const numeric=profile.cols.filter(c=>c.type==='numeric').map(c=>c.name);
         const node=state.nodes.find(n=>n.id===state.selectedNodeId);
-        const wantsDistribution = type==='distribution' || /distribution|histogram|box plot/i.test(node?.name||'');
-        if (wantsDistribution) {
+        const selectedType = type || 'scatter';
+        const titleMap={scatter:'Scatter Plot',distribution:'Distribution',box:'Box Plot',bar:'Bar Chart',line:'Line Chart'};
+        const controls=`<div class="chart-switcher">${[['scatter','Scatter'],['distribution','Distribution'],['box','Box Plot'],['bar','Bar'],['line','Line']].map(([k,l])=>`<button type="button" class="chart-switch ${selectedType===k?'active':''}" data-chart-type="${k}">${l}</button>`).join('')}</div>`;
+        const esc=escapeHtml;
+        if(selectedType==='distribution'){
             const col=node?.config?.column || state.dataset.headers.find(h=>inferType(state.dataset.data.map(r=>r[h]))==='numeric') || state.dataset.headers[0];
             const vals=state.dataset.data.map(r=>String(r[col]??'').trim()).filter(Boolean);
             const numericVals=vals.map(v=>Number(String(v).replace(',','.'))).filter(Number.isFinite);
             let counts=[];
-            let title='Distribution';
-            if (numericVals.length===vals.length && numericVals.length) {
-                const min=Math.min(...numericVals), max=Math.max(...numericVals); const bins=8; const width=(max-min||1)/bins;
-                const b=new Array(bins).fill(0); numericVals.forEach(v=>{let i=Math.floor((v-min)/width); if(i>=bins)i=bins-1; b[i]++;});
-                counts=b.map((count,i)=>({label:formatNumber(min+i*width),value:count})); title='Distribusi · '+col;
-            } else {
-                const map={}; vals.forEach(v=>map[v]=(map[v]||0)+1); counts=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([label,value])=>({label,value})); title='Distribusi kategori · '+col;
-            }
-            const width=760,height=300,pad=44,maxV=Math.max(...counts.map(d=>d.value),1),gap=6,bw=Math.max(12,(width-pad*2)/Math.max(counts.length,1)-gap);
-            container.innerHTML=`<div class="result-title"><strong>${escapeHtml(title)}</strong><span>${vals.length.toLocaleString('id-ID')} nilai</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)}"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/>${counts.map((d,i)=>{const h=(d.value/maxV)*(height-pad*2);const x=pad+i*((width-pad*2)/counts.length)+gap/2;const y=height-pad-h;return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" class="chart-bar"/><text x="${x+bw/2}" y="${height-pad+14}" text-anchor="middle" class="chart-label">${escapeHtml(String(d.label).slice(0,11))}</text>`;}).join('')}</svg></div>`;
-            return;
+            if(numericVals.length===vals.length && numericVals.length){
+                const min=Math.min(...numericVals), max=Math.max(...numericVals), bins=10, width=(max-min||1)/bins;
+                const b=new Array(bins).fill(0); numericVals.forEach(v=>{let i=Math.floor((v-min)/width);if(i>=bins)i=bins-1;b[i]++;});
+                counts=b.map((count,i)=>({label:formatNumber(min+i*width),value:count}));
+            }else{const map={};vals.forEach(v=>map[v]=(map[v]||0)+1);counts=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([label,value])=>({label,value}));}
+            const width=780,height=320,pad=48,maxV=Math.max(...counts.map(d=>d.value),1),gap=7,bw=Math.max(14,(width-pad*2)/Math.max(counts.length,1)-gap);
+            const bars=counts.map((d,i)=>{const h=(d.value/maxV)*(height-pad*2);const x=pad+i*((width-pad*2)/Math.max(counts.length,1))+gap/2;const y=height-pad-h;return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" class="chart-bar"/><text x="${x+bw/2}" y="${height-pad+16}" text-anchor="middle" class="chart-label">${esc(String(d.label).slice(0,12))}</text>`}).join('');
+            container.innerHTML=`${controls}<div class="result-title"><strong>${esc(titleMap[selectedType])} · ${esc(col)}</strong><span>${vals.length.toLocaleString('id-ID')} nilai</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(titleMap[selectedType])}"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/>${bars}</svg></div>`;
+        } else if(selectedType==='box'){
+            const col=node?.config?.column || numeric[0];
+            if(!col){container.innerHTML=`${controls}<div class="result-empty"><strong>Box Plot membutuhkan satu kolom numerik.</strong></div>`;bindChartSwitches();return;}
+            const vals=state.dataset.data.map(r=>Number(String(r[col]).replace(',','.'))).filter(Number.isFinite).sort((a,b)=>a-b);
+            if(!vals.length){container.innerHTML=`${controls}<div class="result-empty">Tidak ada nilai numerik untuk Box Plot.</div>`;bindChartSwitches();return;}
+            const q=(p)=>vals[Math.floor((vals.length-1)*p)], min=vals[0], q1=q(.25), med=q(.5), q3=q(.75), max=vals[vals.length-1];
+            const width=780,height=260,left=90,right=690,y=130; const scale=v=>left+((v-min)/(max-min||1))*(right-left);
+            container.innerHTML=`${controls}<div class="result-title"><strong>Box Plot · ${esc(col)}</strong><span>${vals.length.toLocaleString('id-ID')} nilai</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Box Plot"><line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="box-whisker"/><line x1="${scale(min)}" y1="${y-34}" x2="${scale(min)}" y2="${y+34}" class="box-whisker"/><line x1="${scale(max)}" y1="${y-34}" x2="${scale(max)}" y2="${y+34}" class="box-whisker"/><rect x="${scale(q1)}" y="${y-42}" width="${Math.max(2,scale(q3)-scale(q1))}" height="84" rx="8" class="box-fill"/><line x1="${scale(med)}" y1="${y-42}" x2="${scale(med)}" y2="${y+42}" class="box-median"/><text x="${left}" y="${height-30}" class="chart-label">Min ${esc(formatNumber(min))}</text><text x="${scale(med)}" y="${height-30}" text-anchor="middle" class="chart-label">Median ${esc(formatNumber(med))}</text><text x="${right}" y="${height-30}" text-anchor="end" class="chart-label">Max ${esc(formatNumber(max))}</text></svg></div>`;
+        } else if(selectedType==='bar'){
+            const col=node?.config?.column || state.dataset.headers.find(h=>!numeric.includes(h)) || state.dataset.headers[0];
+            const counts={}; state.dataset.data.forEach(r=>{const k=String(r[col]??'').trim()||'(kosong)';counts[k]=(counts[k]||0)+1;});
+            const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+            const width=780,height=320,pad=54,maxV=Math.max(...entries.map(e=>e[1]),1),bw=Math.max(18,(width-pad*2)/Math.max(entries.length,1)-8);
+            const bars=entries.map((d,i)=>{const h=(d[1]/maxV)*(height-pad*2);const x=pad+i*((width-pad*2)/Math.max(entries.length,1))+4;const y=height-pad-h;return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="5" class="chart-bar"/><text x="${x+bw/2}" y="${height-pad+16}" text-anchor="middle" class="chart-label">${esc(d[0].slice(0,12))}</text>`}).join('');
+            container.innerHTML=`${controls}<div class="result-title"><strong>Bar Chart · ${esc(col)}</strong><span>${state.dataset.data.length.toLocaleString('id-ID')} baris</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Bar Chart"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/>${bars}</svg></div>`;
+        } else {
+            if(numeric.length<2){container.innerHTML=`${controls}<div class="result-empty"><strong>${selectedType==='line'?'Line Chart':'Scatter Plot'} membutuhkan minimal 2 kolom numerik.</strong><small>Gunakan Profile untuk memeriksa tipe kolom.</small></div>`;bindChartSwitches();return;}
+            const x=node?.config?.x || numeric[0], y=node?.config?.y || numeric[1];
+            const pts=state.dataset.data.map((r,i)=>({x:Number(String(r[x]).replace(',','.')),y:Number(String(r[y]).replace(',','.')),i})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).slice(0,500);
+            if(!pts.length){container.innerHTML=`${controls}<div class="result-empty">Tidak ada pasangan nilai numerik yang bisa diplot.</div>`;bindChartSwitches();return;}
+            const width=780,height=320,pad=50; const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const sx=v=>pad+((v-minX)/(maxX-minX||1))*(width-pad*2);const sy=v=>height-pad-((v-minY)/(maxY-minY||1))*(height-pad*2);
+            const marks=selectedType==='line'?`<polyline points="${pts.map(p=>`${sx(p.x)},${sy(p.y)}`).join(' ')}" class="chart-line"/>`:pts.map(p=>`<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="3.4" class="chart-point"/>`).join('');
+            container.innerHTML=`${controls}<div class="result-title"><strong>${esc(titleMap[selectedType])}</strong><span>${esc(x)} × ${esc(y)}</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(titleMap[selectedType])}"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height-pad}" class="chart-axis"/>${marks}<text x="${width/2}" y="${height-10}" class="chart-label">${esc(x)}</text><text x="16" y="${height/2}" transform="rotate(-90 16 ${height/2})" class="chart-label">${esc(y)}</text></svg></div>`;
         }
-        if (numeric.length<2) { container.innerHTML='<div class="result-empty"><span>📈</span><strong>Butuh minimal 2 kolom numerik</strong><small>Gunakan Data Table/Profile untuk dataset kategorikal.</small></div>'; return; }
-        const x=node?.config?.x || numeric[0]; const y=node?.config?.y || numeric[1];
-        const pts=state.dataset.data.map(r=>({x:Number(String(r[x]).replace(',','.')),y:Number(String(r[y]).replace(',','.'))})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)).slice(0,400);
-        const width=720,height=300,pad=42; if (!pts.length){container.innerHTML='<div class="result-empty">Tidak ada pasangan nilai numerik yang dapat diplot.</div>';return;}
-        const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y); const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
-        const sx=v=>pad + ((v-minX)/(maxX-minX||1))*(width-pad*2); const sy=v=>height-pad - ((v-minY)/(maxY-minY||1))*(height-pad*2);
-        container.innerHTML=`<div class="result-title"><strong>Scatter Plot</strong><span>${escapeHtml(x)} × ${escapeHtml(y)}</span></div><div class="chart-shell"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Scatter Plot"><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" class="chart-axis"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height-pad}" class="chart-axis"/>${pts.map(p=>`<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="3.2" class="chart-point"/>`).join('')}<text x="${width/2}" y="${height-8}" class="chart-label">${escapeHtml(x)}</text><text x="14" y="${height/2}" transform="rotate(-90 14 ${height/2})" class="chart-label">${escapeHtml(y)}</text></svg></div>`;
+        bindChartSwitches();
     }
+
+    function bindChartSwitches(){document.querySelectorAll('.chart-switch').forEach(btn=>btn.addEventListener('click',()=>{renderChart(btn.dataset.chartType);showResult('chart');}));}
+
 
     function renderInspector() {
         const node = state.nodes.find(n=>n.id===state.selectedNodeId);
@@ -583,8 +755,8 @@
         const order=topoOrder(); let current=state.dataset; const logs=[];
         order.forEach(node=>{ current=processDataNode(node,current); logs.push(`${node.name}: ${current?.data?.length ?? 0} baris`); });
         if (current) { state.dataset={headers:current.headers,data:current.data}; renderOverview(); }
-        const lastVisual=[...order].reverse().find(n=>/scatter|distribution|histogram|box plot/i.test(n.name));
-        if (lastVisual) { state.selectedNodeId=lastVisual.id; renderInspector(); renderChart(/distribution|histogram|box plot/i.test(lastVisual.name)?'distribution':'scatter'); }
+        const lastVisual=[...order].reverse().find(n=>/scatter|distribution|histogram|box plot|bar plot|line plot/i.test(n.name));
+        if (lastVisual) { state.selectedNodeId=lastVisual.id; renderInspector(); renderChart(/distribution|histogram/i.test(lastVisual.name)?'distribution':/box plot/i.test(lastVisual.name)?'box':/bar plot/i.test(lastVisual.name)?'bar':/line plot/i.test(lastVisual.name)?'line':'scatter'); }
         document.getElementById('result-log').innerHTML=`<div class="run-summary"><strong>Workflow selesai</strong><span>${order.length} widget diproses</span><ol>${logs.map(l=>`<li>${escapeHtml(l)}</li>`).join('')}</ol></div>`;
         showResult(lastVisual?'chart':'overview'); setStatus('Workflow selesai','ready');
     }
@@ -603,7 +775,35 @@
 
     function clearWorkflow() { state.nodes=[]; state.connections=[]; state.selectedNodeId=null; state.nextId=1; state.dataset=null; state.datasetName=''; datasetChip.textContent='Dataset belum dimuat'; renderNodes(); renderInspector(); document.getElementById('result-overview').innerHTML='<div class="result-empty"><span>📊</span><strong>Hasil workflow akan muncul di sini</strong><small>Unggah CSV melalui widget File lalu klik Jalankan.</small></div>'; setStatus('Canvas dibersihkan','ready'); }
 
-    function saveWorkflow() { const blob=new Blob([JSON.stringify({nodes:state.nodes,connections:state.connections},null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orange-learn-workflow.json';a.click();URL.revokeObjectURL(a.href);setStatus('Workflow disimpan','ready'); }
+    function saveWorkflow() { const blob=new Blob([JSON.stringify({nodes:state.nodes,connections:state.connections,view:{zoom:state.zoom,panX:state.panX,panY:state.panY,snap:state.snap,grid:state.grid,gridSize:state.gridSize}},null,2)],{type:'application/json'}); const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='orange-learn-workflow.json';a.click();URL.revokeObjectURL(a.href);setStatus('Workflow disimpan','ready'); }
+    async function getGoogleAccessToken(){
+        if(window.orangeGoogleToken)return window.orangeGoogleToken;
+        const config=await fetch('/api/google/config',{cache:'no-store'}).then(readJsonSafe);
+        if(!config.enabled) throw new Error('Integrasi Google belum dikonfigurasi di server.');
+        return await new Promise((resolve,reject)=>{
+            const popup=window.open('/api/google/oauth/start','orangeLearnGoogleAuth','width=520,height=680');
+            if(!popup){reject(new Error('Popup Google diblokir browser.'));return;}
+            const timer=setTimeout(()=>{window.removeEventListener('message',onMessage);reject(new Error('Autorisasi Google timeout.'));},90000);
+            function onMessage(event){
+                if(event.origin!==window.location.origin)return;
+                if(event.data?.type==='orange-learn-google-auth'&&event.data.accessToken){window.orangeGoogleToken=event.data.accessToken;clearTimeout(timer);window.removeEventListener('message',onMessage);resolve(event.data.accessToken);}
+            }
+            window.addEventListener('message',onMessage);
+        });
+    }
+    async function readJsonSafe(response){const raw=await response.text();let data={};try{data=raw?JSON.parse(raw):{};}catch{throw new Error(`Server HTTP ${response.status}`);}if(!response.ok)throw new Error(data.message||`Server HTTP ${response.status}`);return data;}
+    async function exportGoogle(kind){
+        try{
+            setStatus(kind==='sheets'?'Mengirim dataset ke Google Sheets…':'Membuat laporan Google Docs…','working');
+            const token=await getGoogleAccessToken();
+            let payload={kind,title:kind==='sheets'?'orange-learn • Dataset':'orange-learn • Laporan Workflow'};
+            if(kind==='sheets'){payload.headers=state.dataset?.headers||[];payload.rows=(state.dataset?.data||[]).slice(0,5000).map(r=>payload.headers.map(h=>r[h]??''));}
+            else {const names=topoOrder().map(n=>n.name).join(' → ');payload.content=`Laporan Workflow orange-learn\n\nWorkflow: ${names||'Belum ada widget'}\nDataset: ${state.datasetName||'Belum dimuat'}\nBaris: ${state.dataset?.data?.length||0}\nKolom: ${state.dataset?.headers?.length||0}\n\nOutput terakhir: ${(document.querySelector('#result-log .run-summary')?.innerText||'Jalankan workflow untuk melihat log.')}`;}
+            const res=await fetch('/api/export/google',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(payload)});
+            const data=await readJsonSafe(res);window.open(data.url,'_blank','noopener');setStatus('Berhasil diekspor ke Google','ready');
+        }catch(err){setStatus(err.message||'Ekspor Google gagal','error');showResult('log');document.getElementById('result-log').innerHTML=`<div class="validation-result warning"><strong>Ekspor Google gagal</strong><p>${escapeHtml(err.message)}</p></div>`;}
+    }
+
     function exportCsv() {
         if (!state.dataset) { setStatus('Tidak ada dataset untuk diekspor','error'); return; }
         const headers = state.dataset.headers;
@@ -618,9 +818,7 @@
         setStatus('CSV berhasil diekspor','ready');
     }
 
-    function loadWorkflow(data) { state.nodes=data.nodes||[]; state.connections=data.connections||[]; state.nextId=Math.max(0,...state.nodes.map(n=>n.id||0))+1; renderNodes(); renderInspector(); setStatus('Workflow dimuat','ready'); }
-
-    function zoom(delta) { state.zoom=Math.max(.65,Math.min(1.6,state.zoom+delta)); viewport.style.transform=`scale(${state.zoom})`; viewport.style.transformOrigin='0 0'; zoomLabel.textContent=Math.round(state.zoom*100)+'%'; renderConnections(); }
+    function loadWorkflow(data) { state.nodes=data.nodes||[]; state.connections=data.connections||[]; state.nextId=Math.max(0,...state.nodes.map(n=>n.id||0))+1; if(data.view){state.zoom=clampZoom(data.view.zoom??1);state.panX=Number(data.view.panX)||0;state.panY=Number(data.view.panY)||0;state.snap=data.view.snap!==false;state.grid=data.view.grid!==false;state.gridSize=Number(data.view.gridSize)||20;gridSizeSelect.value=String([14,20,28,36].includes(state.gridSize)?state.gridSize:20);} renderNodes(); renderInspector(); updateCanvasPreferences(); setStatus('Workflow dimuat','ready'); }
 
     widgetButtons.forEach(button=>button.addEventListener('click',()=>addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output})));
     document.querySelectorAll('.toolbox-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.toolbox-tab').forEach(t=>t.classList.toggle('active',t===tab));filterTools();}));
@@ -634,17 +832,69 @@
     document.getElementById('validateBtn').addEventListener('click',validateWorkflow);
     document.getElementById('runBtn').addEventListener('click',runWorkflow);
     document.getElementById('saveWorkflowBtn').addEventListener('click',saveWorkflow);
-    document.getElementById('exportCsvBtn').addEventListener('click',exportCsv);
+    document.getElementById('exportCsvBtn').addEventListener('click',exportCsv); document.getElementById('exportSheetBtn').addEventListener('click',()=>exportGoogle('sheets')); document.getElementById('exportReportBtn').addEventListener('click',()=>exportGoogle('docs'));
     document.getElementById('loadWorkflowBtn').addEventListener('click',()=>workflowFileInput.click());
     workflowFileInput.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{loadWorkflow(JSON.parse(String(r.result)));}catch{setStatus('File workflow tidak valid','error');}};r.readAsText(f);e.target.value='';});
     document.getElementById('zoomInBtn').addEventListener('click',()=>zoom(.1));
     document.getElementById('zoomOutBtn').addEventListener('click',()=>zoom(-.1));
-    document.getElementById('fitCanvasBtn').addEventListener('click',()=>{state.zoom=1;zoomLabel.textContent='100%';viewport.style.transform='scale(1)';renderConnections();});
+    document.getElementById('fitCanvasBtn').addEventListener('click',()=>centerContent());
+    document.getElementById('resetViewBtn').addEventListener('click',()=>resetView());
+    document.getElementById('canvasCustomizeBtn').addEventListener('click',()=>togglePopover());
+    document.getElementById('canvasCustomizeClose').addEventListener('click',()=>togglePopover(false));
+    document.getElementById('centerCanvasBtn').addEventListener('click',()=>centerContent());
+    document.getElementById('resetCanvasPrefsBtn').addEventListener('click',()=>{state.zoom=1;state.panX=30;state.panY=30;state.snap=true;state.grid=true;state.gridSize=20;updateCanvasPreferences();});
+    gridToggleBtn.addEventListener('click',()=>{state.grid=!state.grid;updateCanvasPreferences();});
+    snapToggleBtn.addEventListener('click',()=>{state.snap=!state.snap;updateCanvasPreferences();});
+    gridSizeSelect.addEventListener('change',()=>{state.gridSize=Number(gridSizeSelect.value)||20;applyCanvasView();});
 
-    canvas.addEventListener('click',e=>{if(e.target===canvas||e.target.classList.contains('orange-canvas-grid')){state.selectedNodeId=null;state.connectingFrom=null;renderNodes();renderInspector();setStatus('Siap','ready');}});
-    window.addEventListener('resize',renderConnections);
-    window.addEventListener('scroll',renderConnections,{passive:true});
+    document.getElementById('toggleToolboxBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('toolbox-collapsed');});
+    document.getElementById('toggleInspectorBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('inspector-collapsed');});
 
+    let spacePressed=false;
+    let panPointer=null;
+    window.addEventListener('keydown',e=>{
+        if(e.code==='Space' && !e.repeat){spacePressed=true; workspaceModeChip.textContent='Pan aktif · lepaskan Space untuk kembali'; e.preventDefault();}
+        if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+        if(e.key==='+' || e.key==='='){zoom(.1);}
+        else if(e.key==='-'){zoom(-.1);}
+        else if(e.key==='0'){centerContent();}
+        else if(e.key==='1'){resetView();}
+        else if(e.key.toLowerCase()==='g'){state.grid=!state.grid;updateCanvasPreferences();}
+        else if(e.key.toLowerCase()==='s'){state.snap=!state.snap;updateCanvasPreferences();}
+        else if(e.key==='Escape'){state.connectingFrom=null;panPointer=null;setStatus('Siap','ready');}
+        else if(e.key==='Delete' && state.selectedNodeId!==null){removeNode(state.selectedNodeId);setStatus('Widget dihapus','ready');}
+    });
+    window.addEventListener('keyup',e=>{if(e.code==='Space'){spacePressed=false;workspaceModeChip.textContent='Pan: drag area kosong';}});
+
+    canvas.addEventListener('wheel',e=>{e.preventDefault();const delta=e.deltaY>0?-0.08:0.08;zoom(delta,e);},{passive:false});
+    canvas.addEventListener('pointerdown',e=>{
+        const isBackground = !e.target.closest('.orange-node,.orange-port,.orange-node-menu,.orange-node-remove,.orange-canvas-hud,.canvas-customize-popover');
+        const shouldPan = e.button===1 || (e.button===0 && (spacePressed || isBackground));
+        if(!shouldPan) return;
+        panPointer={id:e.pointerId,startX:e.clientX,startY:e.clientY,originX:state.panX,originY:state.panY};
+        canvas.setPointerCapture?.(e.pointerId);
+        canvas.classList.add('panning');
+        workspaceModeChip.textContent='Pan aktif';
+        e.preventDefault();
+    });
+    canvas.addEventListener('pointermove',e=>{
+        if(!panPointer || panPointer.id!==e.pointerId) return;
+        state.panX=panPointer.originX+(e.clientX-panPointer.startX);
+        state.panY=panPointer.originY+(e.clientY-panPointer.startY);
+        workspaceModeChip.textContent='Pan aktif';
+        applyCanvasView(false);
+    });
+    const endPan=()=>{if(panPointer){panPointer=null;canvas.classList.remove('panning');workspaceModeChip.textContent='Pan: drag area kosong';}};
+    canvas.addEventListener('pointerup',endPan); canvas.addEventListener('pointercancel',endPan);
+
+    canvas.addEventListener('click',e=>{
+        if(e.target===canvas||e.target.id==='canvasGrid'||e.target===world){state.selectedNodeId=null;state.connectingFrom=null;renderNodes();renderInspector();setStatus('Siap','ready');}
+    });
+    document.addEventListener('click',e=>{if(!customizePopover.hidden && !customizePopover.contains(e.target) && e.target.id!=='canvasCustomizeBtn')togglePopover(false);});
+    window.addEventListener('resize',()=>{renderConnections();});
+
+    loadCanvasPrefs();
+    updateCanvasPreferences();
     renderNodes();
     renderInspector();
     setStatus('Siap','ready');
