@@ -9,7 +9,7 @@
 4. Redeploy tanpa menggunakan Build Cache setelah variable dibuat/diubah.
 
 Konfigurasi default aplikasi:
-- `GEMINI_MODEL=gemini-3.8-flash`
+- `GEMINI_MODEL=gemini-3.7-flash`
 - `GEMINI_FALLBACK_MODEL=gemini-3.7-flash`
 - `GEMINI_THINKING_LEVEL=high`
 - `GEMINI_MAX_OUTPUT_TOKENS=8192`

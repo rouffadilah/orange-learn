@@ -52,7 +52,7 @@ Tambahkan Environment Variables di project Vercel:
 ## Environment Variables
 
 - `GEMINI_API_KEY` = API key Gemini dari Google AI Studio
-- `GEMINI_MODEL` = `gemini-3.8-flash`
+- `GEMINI_MODEL` = `gemini-3.7-flash`
 - `GEMINI_FALLBACK_MODEL` = `gemini-3.7-flash`
 - `GEMINI_THINKING_LEVEL` = `high`
 - `GEMINI_MAX_OUTPUT_TOKENS` = `8192`
@@ -61,4 +61,4 @@ Tambahkan Environment Variables di project Vercel:
 
 API key hanya digunakan di backend `app.py` dan tidak ditanam ke JavaScript browser.
 
-Gemini API menyediakan Free Tier dengan batas penggunaan tertentu. Model `gemini-3.8-flash` tercantum memiliki Free Tier; batas dapat berubah dan tetap tunduk pada kuota akun. Untuk aplikasi dengan volume tinggi, cek pricing resmi Google AI for Developers.
+Gemini API menyediakan Free Tier dengan batas penggunaan tertentu. Model `gemini-3.7-flash` tercantum memiliki Free Tier; batas dapat berubah dan tetap tunduk pada kuota akun. Untuk aplikasi dengan volume tinggi, cek pricing resmi Google AI for Developers.

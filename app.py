@@ -174,8 +174,8 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
     if not _valid_gemini_key(api_key):
         return None, "GEMINI_API_KEY belum valid atau belum dipasang di Vercel."
 
-    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
-    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash").strip()
+    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
+    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash").strip()
     timeout = max(8, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "30")))
     attempts = max(1, int(os.getenv("GEMINI_RETRY_COUNT", "3")))
     max_output_tokens = max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")))
@@ -191,25 +191,25 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
           "Saat menganalisis workflow, jelaskan struktur data, tipe kolom, target/class, "
           "hubungan input-output widget, potensi data leakage, validasi, dan cara membaca hasil."
     )
+    generation_config = {"maxOutputTokens": max_output_tokens}
+    # Thinking can be enabled for models that support it. Keep it optional so
+    # free-tier projects and older model configurations remain compatible.
+    if os.getenv("GEMINI_ENABLE_THINKING", "false").strip().lower() in {"1", "true", "yes", "on"}:
+        generation_config["thinkingConfig"] = {"thinkingLevel": thinking_level}
+
     payload_obj = {
         "systemInstruction": {"parts": [{"text": system_instruction}]},
         "contents": _gemini_contents(history, question),
-        "generationConfig": {
-            "thinkingConfig": {"thinkingLevel": thinking_level},
-            "maxOutputTokens": max_output_tokens,
-        },
+        "generationConfig": generation_config,
     }
 
     def request_model(model: str):
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={urllib.parse.quote(api_key, safe='')}"
         payload = json.dumps(payload_obj).encode("utf-8")
         req = urllib.request.Request(
             endpoint,
             data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key,
-            },
+            headers={"Content-Type": "application/json"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -400,6 +400,41 @@ def ai_status():
         "workflow_templates": len(load_workflow_templates()),
     })
 
+
+@app.route("/api/ai-diagnostic")
+def ai_diagnostic():
+    """Small, safe health check for the Gemini integration. Never returns the API key."""
+    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+    if not _valid_gemini_key(key):
+        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
+                        "message": "GEMINI_API_KEY belum dipasang atau tidak valid."}), 503
+    model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip()
+    payload = json.dumps({"contents": [{"role": "user", "parts": [{"text": "Balas hanya: OK"}]}],
+                          "generationConfig": {"maxOutputTokens": 16}}).encode("utf-8")
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={urllib.parse.quote(key, safe='')}"
+    req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        text_value = ""
+        for part in ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
+            if part.get("text"):
+                text_value += str(part["text"])
+        return jsonify({"success": True, "connected": True, "provider": "Google Gemini API",
+                        "model": model, "response": text_value.strip()[:20]})
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(body)
+            detail = parsed.get("error", {}).get("message", body)
+            status = parsed.get("error", {}).get("status")
+        except json.JSONDecodeError:
+            detail, status = body[:500], None
+        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
+                        "model": model, "http_status": exc.code, "status": status, "message": detail}), 502
+    except Exception as exc:
+        return jsonify({"success": False, "connected": False, "provider": "Google Gemini API",
+                        "model": model, "message": str(exc)[:500]}), 502
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
