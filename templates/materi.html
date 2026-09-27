@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Materi - orange-learn</title>
+
+    <link
+        rel="stylesheet"
+        href="/css/style.css"
+    >
+
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+
+    {% include "_sidebar.html" %}
+
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
+
+            <div>
+
+                <h1>Materi Orange Data Mining</h1>
+
+                <p>
+                    Pelajari Orange Data Mining dari dasar
+                    sampai machine learning.
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <section class="content">
+
+            <!-- SEARCH -->
+
+            <form
+                method="GET"
+                action="/materi"
+                class="search-box"
+            >
+
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search }}"
+                    placeholder="🔎 Cari materi, misalnya Random Forest..."
+                >
+
+                <button type="submit">
+                    Cari
+                </button>
+
+            </form>
+
+
+            <!-- RESULT -->
+
+            <div class="materi-header">
+
+                <h2>
+                    {% if search %}
+                        Hasil pencarian: "{{ search }}"
+                    {% else %}
+                        Semua Materi
+                    {% endif %}
+                </h2>
+
+                <span>
+                    {{ materi|length }} materi
+                </span>
+
+            </div>
+
+
+            <!-- MATERIAL GRID -->
+
+            <div class="materi-grid">
+
+                {% for item in materi %}
+
+                <div class="materi-card">
+
+                    <div class="materi-icon">
+                        📚
+                    </div>
+
+                    <div class="materi-category">
+                        {{ item["kategori"] }}
+                    </div>
+
+                    <h3>
+                        {{ item["judul"] }}
+                    </h3>
+
+                    <p>
+                        {{ item["deskripsi"] }}
+                    </p>
+
+                    <div class="materi-footer">
+
+                        <span class="level">
+                            {{ item["tingkat"] }}
+                        </span>
+
+                        <a
+                            href="/materi/{{ item['id'] }}"
+                            class="btn"
+                        >
+                            Pelajari →
+                        </a>
+
+                    </div>
+
+                </div>
+
+                {% else %}
+
+                <div class="empty">
+
+                    <div>
+                        🔎
+                    </div>
+
+                    <h3>
+                        Materi tidak ditemukan
+                    </h3>
+
+                    <p>
+                        Coba gunakan kata pencarian yang berbeda.
+                    </p>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+
+</html>

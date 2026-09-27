@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Workflow Builder - orange-learn
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/css/style.css"
+    >
+
+</head>
+
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+
+    {% include "_sidebar.html" %}
+
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
+
+            <div>
+
+                <h1>
+                    Workflow Builder
+                </h1>
+
+                <p>
+                    Susun workflow Orange Data Mining secara visual.
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <section class="builder-page">
+
+
+            <!-- TOOLBOX -->
+
+            <aside class="builder-toolbox">
+
+                <div class="builder-title">
+
+                    <h2>
+                        🧩 Widget
+                    </h2>
+
+                    <p>
+                        Klik widget untuk menambahkannya.
+                    </p>
+
+                </div>
+
+
+                <input
+                    type="text"
+                    id="widgetSearch"
+                    placeholder="🔎 Cari widget..."
+                >
+
+
+                <div
+                    class="toolbox-list"
+                    id="toolboxList"
+                >
+
+                    {% for item in widget %}
+
+                    <button
+                        class="toolbox-widget"
+                        data-id="{{ item['id'] }}"
+                        data-name="{{ item['nama'] }}"
+                        data-category="{{ item['kategori'] }}"
+                        data-input="{{ item['input_data'] }}"
+                        data-output="{{ item['output_data'] }}"
+                    >
+
+                        <span>
+                            🧩
+                        </span>
+
+                        <div>
+
+                            <strong>
+                                {{ item["nama"] }}
+                            </strong>
+
+                            <small>
+                                {{ item["kategori"] }}
+                            </small>
+
+                        </div>
+
+                    </button>
+
+                    {% endfor %}
+
+                </div>
+
+            </aside>
+
+
+            <!-- CANVAS -->
+
+            <section class="workflow-builder">
+
+
+                <div class="builder-toolbar">
+
+                    <div>
+
+                        <strong>
+                            Canvas Workflow
+                        </strong>
+
+                        <span id="nodeCount">
+                            0 widget
+                        </span>
+
+                    </div>
+
+
+                    <div class="toolbar-actions">
+
+                        <button
+                            class="secondary-btn"
+                            id="clearBtn"
+                        >
+                            🗑️ Bersihkan
+                        </button>
+
+                        <button
+                            class="secondary-btn"
+                            id="recommendBtn"
+                        >
+                            🤖 Saran Berikutnya
+                        </button>
+
+                        <button
+                            class="primary-btn"
+                            id="validateBtn"
+                        >
+                            🔍 Periksa Workflow
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="workflow-canvas"
+                    id="workflowCanvas"
+                >
+
+                    <div
+                        class="canvas-empty"
+                        id="canvasEmpty"
+                    >
+
+                        <div>
+                            🛠️
+                        </div>
+
+                        <h3>
+                            Mulai Membuat Workflow
+                        </h3>
+
+                        <p>
+                            Klik widget di sebelah kiri
+                            untuk menambahkannya ke canvas.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- VALIDATION -->
+
+                <div
+                    class="validation-panel"
+                    id="validationPanel"
+                >
+
+                    <div class="validation-title">
+                        💡 Asisten Workflow
+                    </div>
+
+                    <div id="validationResult">
+                        Tambahkan widget kemudian klik
+                        <strong>Periksa Workflow</strong>.
+                    </div>
+
+                </div>
+
+
+            </section>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script>
+
+const canvas =
+    document.getElementById("workflowCanvas");
+
+const canvasEmpty =
+    document.getElementById("canvasEmpty");
+
+const nodeCount =
+    document.getElementById("nodeCount");
+
+const validationResult =
+    document.getElementById("validationResult");
+
+const validationPanel =
+    document.getElementById("validationPanel");
+
+const widgetSearch =
+    document.getElementById("widgetSearch");
+
+const toolboxList =
+    document.getElementById("toolboxList");
+
+const clearBtn =
+    document.getElementById("clearBtn");
+
+const validateBtn =
+    document.getElementById("validateBtn");
+
+const recommendBtn =
+    document.getElementById("recommendBtn");
+
+    recommendBtn.addEventListener(
+    "click",
+    () => {
+
+        const recommendation =
+            getNextRecommendation();
+
+
+        showValidation(
+
+            "info",
+
+            "🤖 Rekomendasi Tutor",
+
+            `
+            <div class="recommendation-box">
+
+                <div class="recommendation-widget">
+
+                    🧩
+
+                    <strong>
+                        ${recommendation.name}
+                    </strong>
+
+                </div>
+
+                <p>
+                    ${recommendation.reason}
+                </p>
+
+            </div>
+            `
+
+        );
+
+    }
+);
+
+let nodes = [];
+
+let nextNodeId = 1;
+
+function loadGeneratedWorkflow() {
+
+    const saved =
+        localStorage.getItem(
+            "orangeGeneratedWorkflow"
+        );
+
+
+    if (!saved) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const widgets =
+            JSON.parse(saved);
+
+
+        widgets.forEach(
+            widgetName => {
+
+                const button =
+                    Array.from(
+                        document.querySelectorAll(
+                            ".toolbox-widget"
+                        )
+                    ).find(
+                        button =>
+                            button.dataset.name
+                            === widgetName
+                    );
+
+
+                if (button) {
+
+                    addNode({
+
+                        id:
+                            button.dataset.id,
+
+                        name:
+                            button.dataset.name,
+
+                        category:
+                            button.dataset.category,
+
+                        input:
+                            button.dataset.input,
+
+                        output:
+                            button.dataset.output
+
+                    });
+
+                }
+
+            }
+        );
+
+
+        localStorage.removeItem(
+            "orangeGeneratedWorkflow"
+        );
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Gagal memuat workflow:",
+            error
+        );
+
+    }
+
+}
+
+
+/* ==========================================
+   TAMBAH WIDGET
+========================================== */
+
+document
+    .querySelectorAll(".toolbox-widget")
+    .forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                addNode({
+
+                    id: button.dataset.id,
+
+                    name: button.dataset.name,
+
+                    category:
+                        button.dataset.category,
+
+                    input:
+                        button.dataset.input,
+
+                    output:
+                        button.dataset.output
+
+                });
+
+            }
+        );
+
+    });
+
+
+/* ==========================================
+   ADD NODE
+========================================== */
+
+function addNode(widget) {
+
+    const node = {
+
+        nodeId: nextNodeId++,
+
+        ...widget
+
+    };
+
+    nodes.push(node);
+
+    renderNodes();
+
+}
+
+
+/* ==========================================
+   RENDER
+========================================== */
+
+function renderNodes() {
+
+    const oldNodes =
+        canvas.querySelectorAll(".workflow-node");
+
+    oldNodes.forEach(
+        node => node.remove()
+    );
+
+
+    if (nodes.length === 0) {
+
+        canvasEmpty.style.display =
+            "flex";
+
+    } else {
+
+        canvasEmpty.style.display =
+            "none";
+
+    }
+
+
+    nodes.forEach(
+        (node, index) => {
+
+            const element =
+                document.createElement("div");
+
+            element.className =
+                "workflow-node";
+
+
+            element.innerHTML = `
+
+                <div class="node-number">
+                    ${index + 1}
+                </div>
+
+                <div class="node-icon">
+                    🧩
+                </div>
+
+                <div class="node-content">
+
+                    <strong>
+                        ${node.name}
+                    </strong>
+
+                    <small>
+                        ${node.category}
+                    </small>
+
+                </div>
+
+                <button
+                    class="remove-node"
+                    onclick="removeNode(${node.nodeId})"
+                >
+                    ×
+                </button>
+
+            `;
+
+
+            canvas.appendChild(element);
+
+        }
+    );
+
+
+    updateCount();
+
+}
+
+
+/* ==========================================
+   REMOVE NODE
+========================================== */
+
+function removeNode(nodeId) {
+
+    nodes =
+        nodes.filter(
+            node =>
+                node.nodeId !== nodeId
+        );
+
+    renderNodes();
+
+}
+
+
+/* ==========================================
+   COUNT
+========================================== */
+
+function updateCount() {
+
+    nodeCount.textContent =
+        `${nodes.length} widget`;
+
+}
+
+
+/* ==========================================
+   CLEAR
+========================================== */
+
+clearBtn.addEventListener(
+    "click",
+    () => {
+
+        if (nodes.length === 0) {
+            return;
+        }
+
+        if (
+            confirm(
+                "Hapus semua widget dari workflow?"
+            )
+        ) {
+
+            nodes = [];
+
+            renderNodes();
+
+            validationResult.innerHTML =
+                "Canvas sudah dibersihkan.";
+
+        }
+
+    }
+);
+
+
+/* ==========================================
+   SEARCH WIDGET
+========================================== */
+
+widgetSearch.addEventListener(
+    "input",
+    () => {
+
+        const keyword =
+            widgetSearch.value
+                .toLowerCase()
+                .trim();
+
+
+        document
+            .querySelectorAll(
+                ".toolbox-widget"
+            )
+            .forEach(button => {
+
+                const name =
+                    button.dataset.name
+                        .toLowerCase();
+
+                const category =
+                    button.dataset.category
+                        .toLowerCase();
+
+
+                if (
+                    name.includes(keyword)
+                    ||
+                    category.includes(keyword)
+                ) {
+
+                    button.style.display =
+                        "flex";
+
+                } else {
+
+                    button.style.display =
+                        "none";
+
+                }
+
+            });
+
+    }
+);
+
+
+/* ==========================================
+   VALIDASI WORKFLOW
+========================================== */
+
+validateBtn.addEventListener(
+    "click",
+    validateWorkflow
+);
+
+
+function validateWorkflow() {
+
+    if (nodes.length === 0) {
+
+        showValidation(
+            "warning",
+            "⚠️ Workflow masih kosong",
+            "Tambahkan widget terlebih dahulu."
+        );
+
+        return;
+    }
+
+
+    if (nodes.length === 1) {
+
+        showValidation(
+            "warning",
+            "⚠️ Workflow belum lengkap",
+            "Tambahkan minimal satu widget lagi agar hubungan antar-widget dapat dianalisis."
+        );
+
+        return;
+    }
+
+
+    const names =
+        nodes.map(node => node.name);
+
+
+    let messages = [];
+
+    let suggestions = [];
+
+    let errors = [];
+
+
+    /* =====================================
+       1. SUMBER DATA
+    ===================================== */
+
+    const dataSources = [
+
+        "File",
+        "CSV File Import",
+        "Excel",
+        "SQL Table",
+        "Data Table"
+
+    ];
+
+
+    const hasDataSource =
+        names.some(
+            name =>
+                dataSources.some(
+                    source =>
+                        name
+                            .toLowerCase()
+                            .includes(
+                                source.toLowerCase()
+                            )
+                )
+        );
+
+
+    if (!hasDataSource) {
+
+        errors.push(
+            "Workflow belum memiliki sumber data."
+        );
+
+        suggestions.push(
+            "📁 File — gunakan untuk memasukkan dataset."
+        );
+
+    }
+
+
+    /* =====================================
+       2. PREPROCESSING
+    ===================================== */
+
+    const preprocessing = [
+
+        "Select Columns",
+        "Preprocess",
+        "Impute",
+        "Continuize",
+        "Normalize",
+        "Discretize"
+
+    ];
+
+
+    const hasPreprocessing =
+        names.some(
+            name =>
+                preprocessing.some(
+                    item =>
+                        name
+                            .toLowerCase()
+                            .includes(
+                                item.toLowerCase()
+                            )
+                )
+        );
+
+
+    if (
+        hasDataSource
+        &&
+        !hasPreprocessing
+    ) {
+
+        suggestions.push(
+            "🔧 Preprocess / Select Columns — pertimbangkan preprocessing sebelum modeling."
+        );
+
+    }
+
+
+    /* =====================================
+       3. MODEL
+    ===================================== */
+
+    const classificationModels = [
+
+        "Random Forest",
+        "Tree",
+        "kNN",
+        "SVM",
+        "Logistic Regression",
+        "Naive Bayes"
+
+    ];
+
+
+    const regressionModels = [
+
+        "Linear Regression",
+        "Random Forest Regression"
+
+    ];
+
+
+    const clusteringModels = [
+
+        "k-Means",
+        "K-Means",
+        "Hierarchical Clustering",
+        "DBSCAN"
+
+    ];
+
+
+    const allModels = [
+
+        ...classificationModels,
+        ...regressionModels,
+        ...clusteringModels
+
+    ];
+
+
+    const modelName =
+        names.find(
+            name =>
+                allModels.some(
+                    model =>
+                        name
+                            .toLowerCase()
+                            .includes(
+                                model.toLowerCase()
+                            )
+                )
+        );
+
+
+    const hasModel =
+        Boolean(modelName);
+
+
+    if (!hasModel) {
+
+        suggestions.push(
+            "🤖 Tambahkan model machine learning sesuai tujuan analisis."
+        );
+
+    }
+
+
+    /* =====================================
+       4. TEST & SCORE
+    ===================================== */
+
+    const hasEvaluation =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes("test & score")
+        );
+
+
+    if (
+        hasModel
+        &&
+        !hasEvaluation
+    ) {
+
+        suggestions.push(
+            "📊 Test & Score — tambahkan untuk mengevaluasi performa model."
+        );
+
+    }
+
+
+    /* =====================================
+       5. CONFUSION MATRIX
+    ===================================== */
+
+    const hasConfusionMatrix =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes(
+                        "confusion matrix"
+                    )
+        );
+
+
+    if (
+        hasEvaluation
+        &&
+        !hasConfusionMatrix
+        &&
+        modelName
+    ) {
+
+        if (
+            classificationModels.some(
+                model =>
+                    modelName
+                        .toLowerCase()
+                        .includes(
+                            model.toLowerCase()
+                        )
+            )
+        ) {
+
+            suggestions.push(
+                "🎯 Confusion Matrix — gunakan untuk melihat hasil klasifikasi secara lebih detail."
+            );
+
+        }
+
+    }
+
+
+    /* =====================================
+       6. DATA TABLE
+    ===================================== */
+
+    const hasDataTable =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes(
+                        "data table"
+                    )
+        );
+
+
+    if (
+        hasDataSource
+        &&
+        !hasDataTable
+    ) {
+
+        suggestions.push(
+            "📋 Data Table — gunakan untuk melihat isi dataset."
+        );
+
+    }
+
+
+    /* =====================================
+       7. VISUALISASI
+    ===================================== */
+
+    const visualizationWidgets = [
+
+        "Scatter Plot",
+        "Box Plot",
+        "Histogram",
+        "Distributions",
+        "Heat Map"
+
+    ];
+
+
+    const hasVisualization =
+        names.some(
+            name =>
+                visualizationWidgets.some(
+                    item =>
+                        name
+                            .toLowerCase()
+                            .includes(
+                                item.toLowerCase()
+                            )
+                )
+        );
+
+
+    if (
+        hasDataSource
+        &&
+        !hasVisualization
+    ) {
+
+        suggestions.push(
+            "📈 Tambahkan widget visualisasi seperti Scatter Plot atau Distributions untuk mengeksplorasi data."
+        );
+
+    }
+
+
+    /* =====================================
+       8. URUTAN WORKFLOW
+    ===================================== */
+
+    const firstWidget =
+        names[0];
+
+
+    if (
+        firstWidget
+        &&
+        !dataSources.some(
+            source =>
+                firstWidget
+                    .toLowerCase()
+                    .includes(
+                        source.toLowerCase()
+                    )
+        )
+    ) {
+
+        messages.push(
+            "💡 Workflow sebaiknya dimulai dari widget sumber data."
+        );
+
+    }
+
+
+    /* =====================================
+       9. HASIL VALIDASI
+    ===================================== */
+
+    let html = "";
+
+
+    if (errors.length > 0) {
+
+        html += `
+            <div class="intelligence-error">
+
+                <strong>
+                    ⚠️ Hal yang perlu diperbaiki
+                </strong>
+
+                <ul>
+                    ${errors
+                        .map(
+                            item =>
+                                `<li>${item}</li>`
+                        )
+                        .join("")}
+                </ul>
+
+            </div>
+        `;
+
+    }
+
+
+    if (messages.length > 0) {
+
+        html += `
+            <div class="intelligence-info">
+
+                <strong>
+                    💡 Catatan
+                </strong>
+
+                <ul>
+                    ${messages
+                        .map(
+                            item =>
+                                `<li>${item}</li>`
+                        )
+                        .join("")}
+                </ul>
+
+            </div>
+        `;
+
+    }
+
+
+    if (suggestions.length > 0) {
+
+        html += `
+            <div class="intelligence-suggestions">
+
+                <strong>
+                    🤖 Rekomendasi Tutor
+                </strong>
+
+                <ul>
+                    ${suggestions
+                        .map(
+                            item =>
+                                `<li>${item}</li>`
+                        )
+                        .join("")}
+                </ul>
+
+            </div>
+        `;
+
+    }
+
+
+    if (
+        errors.length === 0
+        &&
+        suggestions.length === 0
+    ) {
+
+        html = `
+            <div class="intelligence-success">
+
+                <strong>
+                    ✅ Workflow terlihat lengkap
+                </strong>
+
+                <p>
+                    Workflow memiliki sumber data,
+                    proses analisis, dan komponen yang
+                    diperlukan untuk melanjutkan analisis.
+                </p>
+
+            </div>
+        `;
+
+    }
+
+
+    showValidation(
+        errors.length > 0
+            ? "warning"
+            : "success",
+
+        errors.length > 0
+            ? "🔎 Analisis Workflow"
+            : "✅ Analisis Workflow",
+
+        html
+    );
+
+}
+
+function getNextRecommendation() {
+
+    const names =
+        nodes.map(node => node.name);
+
+
+    if (nodes.length === 0) {
+
+        return {
+            name: "File",
+            reason:
+                "Workflow perlu dimulai dengan sumber data."
+        };
+
+    }
+
+
+    const hasFile =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes("file")
+        );
+
+
+    if (!hasFile) {
+
+        return {
+            name: "File",
+            reason:
+                "Tambahkan File untuk memasukkan dataset."
+        };
+
+    }
+
+
+    const hasDataTable =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes("data table")
+        );
+
+
+    if (!hasDataTable) {
+
+        return {
+            name: "Data Table",
+            reason:
+                "Gunakan Data Table untuk melihat isi dataset."
+        };
+
+    }
+
+
+    const hasModel =
+        names.some(
+            name =>
+                [
+                    "Random Forest",
+                    "Tree",
+                    "kNN",
+                    "SVM",
+                    "Linear Regression"
+                ].some(
+                    model =>
+                        name
+                            .toLowerCase()
+                            .includes(
+                                model.toLowerCase()
+                            )
+                )
+        );
+
+
+    if (!hasModel) {
+
+        return {
+            name: "Random Forest",
+            reason:
+                "Tambahkan model machine learning untuk melakukan prediksi."
+        };
+
+    }
+
+
+    const hasTestScore =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes(
+                        "test & score"
+                    )
+        );
+
+
+    if (!hasTestScore) {
+
+        return {
+            name: "Test & Score",
+            reason:
+                "Gunakan Test & Score untuk mengukur performa model."
+        };
+
+    }
+
+
+    const hasConfusion =
+        names.some(
+            name =>
+                name
+                    .toLowerCase()
+                    .includes(
+                        "confusion matrix"
+                    )
+        );
+
+
+    if (!hasConfusion) {
+
+        return {
+            name: "Confusion Matrix",
+            reason:
+                "Gunakan Confusion Matrix untuk menganalisis hasil klasifikasi."
+        };
+
+    }
+
+
+    return {
+
+        name: "ROC Analysis",
+
+        reason:
+            "Workflow utama sudah lengkap. ROC Analysis dapat digunakan untuk analisis performa klasifikasi."
+
+    };
+
+}
+
+
+/* ==========================================
+   VALIDATION UI
+========================================== */
+
+function showValidation(
+    type,
+    title,
+    message
+) {
+
+    validationPanel.className =
+        "validation-panel " + type;
+
+
+    validationResult.innerHTML = `
+
+        <div class="validation-heading">
+            ${title}
+        </div>
+
+        <div class="validation-message">
+            ${message}
+        </div>
+
+    `;
+
+}
+
+loadGeneratedWorkflow();
+</script>
+
+
+<script src="/js/app.js"></script>
+</body>
+
+</html>

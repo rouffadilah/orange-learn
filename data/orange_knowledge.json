@@ -1,0 +1,343 @@
+[
+  {
+    "id": "orange-intro",
+    "question": "Apa itu Orange Data Mining?",
+    "keywords": [
+      "orange",
+      "orange data mining",
+      "data mining"
+    ],
+    "answer": "Orange Data Mining adalah platform visual untuk data mining, machine learning, analisis data, dan visualisasi. Pengguna dapat membuat workflow dengan menghubungkan berbagai widget tanpa harus menulis banyak kode."
+  },
+  {
+    "id": "file-widget",
+    "question": "Apa fungsi File widget?",
+    "keywords": [
+      "file",
+      "file widget",
+      "import data",
+      "memasukkan data"
+    ],
+    "answer": "File widget digunakan untuk membuka dan memasukkan dataset ke dalam workflow Orange. Dataset dapat berasal dari berbagai format yang didukung Orange."
+  },
+  {
+    "id": "data-table",
+    "question": "Apa fungsi Data Table?",
+    "keywords": [
+      "data table",
+      "table",
+      "melihat data"
+    ],
+    "answer": "Data Table digunakan untuk melihat data dalam bentuk tabel. Widget ini berguna untuk memeriksa isi dataset, atribut, dan nilai data."
+  },
+  {
+    "id": "random-forest",
+    "question": "Apa fungsi Random Forest?",
+    "keywords": [
+      "random forest",
+      "random",
+      "forest"
+    ],
+    "answer": "Random Forest merupakan algoritma machine learning berbasis ensemble yang menggunakan banyak decision tree. Di Orange, Random Forest dapat digunakan untuk klasifikasi maupun regresi."
+  },
+  {
+    "id": "test-score",
+    "question": "Apa fungsi Test & Score?",
+    "keywords": [
+      "test score",
+      "test",
+      "score",
+      "evaluasi model"
+    ],
+    "answer": "Test & Score digunakan untuk mengevaluasi performa model machine learning menggunakan metode evaluasi seperti cross validation dan berbagai metrik performa."
+  },
+  {
+    "id": "confusion-matrix",
+    "question": "Apa fungsi Confusion Matrix?",
+    "keywords": [
+      "confusion matrix",
+      "confusion",
+      "matrix"
+    ],
+    "answer": "Confusion Matrix digunakan untuk melihat hasil prediksi model klasifikasi berdasarkan kelas sebenarnya dan kelas hasil prediksi."
+  },
+  {
+    "id": "classification",
+    "question": "Apa itu klasifikasi?",
+    "keywords": [
+      "klasifikasi",
+      "classification",
+      "class"
+    ],
+    "answer": "Klasifikasi adalah metode machine learning yang digunakan untuk memprediksi kategori atau kelas suatu data. Contohnya memprediksi siswa lulus atau tidak lulus."
+  },
+  {
+    "id": "regression",
+    "question": "Apa itu regresi?",
+    "keywords": [
+      "regresi",
+      "regression"
+    ],
+    "answer": "Regresi digunakan untuk memprediksi nilai numerik. Contohnya memprediksi harga rumah berdasarkan luas bangunan, jumlah kamar, dan lokasi."
+  },
+  {
+    "id": "clustering",
+    "question": "Apa itu clustering?",
+    "keywords": [
+      "clustering",
+      "cluster",
+      "pengelompokan"
+    ],
+    "answer": "Clustering adalah teknik unsupervised learning yang digunakan untuk mengelompokkan data berdasarkan kemiripan karakteristik tanpa membutuhkan label kelas."
+  },
+  {
+    "id": "kmeans",
+    "question": "Apa fungsi k-Means?",
+    "keywords": [
+      "kmeans",
+      "k-means",
+      "k means"
+    ],
+    "answer": "k-Means adalah algoritma clustering yang mengelompokkan data ke dalam sejumlah cluster berdasarkan kedekatan karakteristik data."
+  },
+  {
+    "id": "select-rows",
+    "question": "Apa fungsi Select Rows?",
+    "keywords": [
+      "select rows",
+      "filter baris",
+      "filter data",
+      "rows"
+    ],
+    "answer": "Select Rows digunakan untuk menyaring baris berdasarkan kondisi tertentu. Widget ini berguna ketika Anda hanya ingin menganalisis subset data, misalnya siswa dengan nilai di atas ambang tertentu."
+  },
+  {
+    "id": "impute",
+    "question": "Apa fungsi Impute?",
+    "keywords": [
+      "impute",
+      "missing value",
+      "missing values",
+      "data kosong",
+      "nilai hilang"
+    ],
+    "answer": "Impute digunakan untuk menangani nilai yang hilang. Strateginya perlu dipilih sesuai karakteristik data, misalnya menggunakan nilai rerata, median, modus, atau pendekatan lain yang tersedia."
+  },
+  {
+    "id": "normalize",
+    "question": "Apa fungsi Normalize?",
+    "keywords": [
+      "normalize",
+      "normalisasi",
+      "skala data",
+      "scaling"
+    ],
+    "answer": "Normalize membantu menyetarakan skala atribut numerik. Ini berguna untuk algoritma yang sensitif terhadap skala, terutama ketika rentang antarfitur sangat berbeda."
+  },
+  {
+    "id": "feature-constructor",
+    "question": "Apa fungsi Feature Constructor?",
+    "keywords": [
+      "feature constructor",
+      "buat fitur",
+      "rekayasa fitur",
+      "feature engineering"
+    ],
+    "answer": "Feature Constructor digunakan untuk membuat atribut baru dari atribut yang sudah ada menggunakan formula atau ekspresi. Ini membantu membentuk variabel yang lebih relevan untuk analisis."
+  },
+  {
+    "id": "pca",
+    "question": "Apa fungsi PCA?",
+    "keywords": [
+      "pca",
+      "principal component analysis",
+      "reduksi dimensi",
+      "dimensionality reduction"
+    ],
+    "answer": "PCA digunakan untuk mereduksi dimensi dengan membentuk komponen utama yang merangkum variasi data. PCA sering dipakai untuk eksplorasi atau membantu visualisasi data berdimensi tinggi."
+  },
+  {
+    "id": "knn",
+    "question": "Apa fungsi kNN?",
+    "keywords": [
+      "knn",
+      "k-nearest neighbors",
+      "nearest neighbors",
+      "tetangga terdekat"
+    ],
+    "answer": "kNN melakukan prediksi berdasarkan kemiripan dengan sejumlah tetangga terdekat. Pemilihan jumlah tetangga dan skala fitur dapat memengaruhi hasil model."
+  },
+  {
+    "id": "decision-tree",
+    "question": "Apa fungsi Tree?",
+    "keywords": [
+      "tree",
+      "decision tree",
+      "pohon keputusan"
+    ],
+    "answer": "Tree membangun model berbasis aturan pemisahan data dalam bentuk pohon. Keunggulannya adalah struktur keputusan relatif mudah dijelaskan dan divisualisasikan."
+  },
+  {
+    "id": "svm",
+    "question": "Apa fungsi SVM?",
+    "keywords": [
+      "svm",
+      "support vector machine",
+      "support vector"
+    ],
+    "answer": "SVM mencari batas pemisah yang optimal antar kelas. SVM dapat efektif pada banyak fitur, namun konfigurasi kernel dan parameter perlu disesuaikan dengan karakteristik data."
+  },
+  {
+    "id": "naive-bayes",
+    "question": "Apa fungsi Naive Bayes?",
+    "keywords": [
+      "naive bayes",
+      "bayes",
+      "probabilistik"
+    ],
+    "answer": "Naive Bayes merupakan metode klasifikasi probabilistik yang menggunakan asumsi independensi bersyarat antarfitur. Model ini sederhana dan dapat menjadi baseline yang baik."
+  },
+  {
+    "id": "logistic-regression",
+    "question": "Apa fungsi Logistic Regression?",
+    "keywords": [
+      "logistic regression",
+      "regresi logistik",
+      "klasifikasi biner"
+    ],
+    "answer": "Logistic Regression digunakan terutama untuk klasifikasi, khususnya ketika target berupa kelas seperti ya/tidak. Model menghasilkan probabilitas kelas yang dapat digunakan untuk pengambilan keputusan."
+  },
+  {
+    "id": "linear-regression",
+    "question": "Apa fungsi Linear Regression?",
+    "keywords": [
+      "linear regression",
+      "regresi linear",
+      "prediksi numerik"
+    ],
+    "answer": "Linear Regression memodelkan hubungan antara variabel input dan target numerik. Cocok digunakan ketika tujuan analisis adalah memprediksi nilai kontinu."
+  },
+  {
+    "id": "roc-analysis",
+    "question": "Apa fungsi ROC Analysis?",
+    "keywords": [
+      "roc analysis",
+      "roc curve",
+      "auc",
+      "kurva roc"
+    ],
+    "answer": "ROC Analysis digunakan untuk melihat hubungan True Positive Rate dan False Positive Rate pada berbagai threshold. AUC sering dipakai sebagai ringkasan kemampuan pemisahan model."
+  },
+  {
+    "id": "predictions",
+    "question": "Apa fungsi Predictions?",
+    "keywords": [
+      "predictions",
+      "prediksi hasil",
+      "hasil prediksi"
+    ],
+    "answer": "Predictions digunakan untuk melihat hasil prediksi model pada data. Widget ini berguna untuk memeriksa kelas atau nilai prediksi serta membandingkannya dengan data asli ketika tersedia."
+  },
+  {
+    "id": "hierarchical",
+    "question": "Apa fungsi Hierarchical Clustering?",
+    "keywords": [
+      "hierarchical clustering",
+      "hierarchical",
+      "dendrogram",
+      "cluster hirarki"
+    ],
+    "answer": "Hierarchical Clustering membangun struktur pengelompokan bertingkat yang dapat divisualisasikan sebagai dendrogram. Ini membantu melihat hubungan antarobjek pada beberapa tingkat pengelompokan."
+  },
+  {
+    "id": "dbscan",
+    "question": "Apa fungsi DBSCAN?",
+    "keywords": [
+      "dbscan",
+      "density clustering",
+      "noise",
+      "outlier"
+    ],
+    "answer": "DBSCAN mengelompokkan data berdasarkan kepadatan dan dapat menandai sejumlah titik sebagai noise. Metode ini berguna ketika bentuk cluster tidak selalu bulat dan jumlah cluster belum diketahui sebelumnya."
+  },
+  {
+    "id": "association-rules",
+    "question": "Apa fungsi Association Rules?",
+    "keywords": [
+      "association rules",
+      "association rule",
+      "aturan asosiasi",
+      "frequent itemset",
+      "support",
+      "confidence"
+    ],
+    "answer": "Association Rules digunakan untuk menemukan hubungan atau pola kemunculan item secara bersamaan. Support dan confidence merupakan ukuran penting saat menilai aturan asosiasi."
+  },
+  {
+    "id": "rank",
+    "question": "Apa fungsi Rank?",
+    "keywords": [
+      "rank",
+      "ranking fitur",
+      "feature scoring",
+      "seleksi fitur",
+      "feature selection"
+    ],
+    "answer": "Rank membantu menilai dan mengurutkan fitur berdasarkan skor atau metode seleksi tertentu. Hasilnya dapat digunakan untuk mengidentifikasi atribut yang paling informatif sebelum pemodelan."
+  },
+  {
+    "id": "correlations",
+    "question": "Apa fungsi Correlations?",
+    "keywords": [
+      "correlations",
+      "correlation",
+      "korelasi",
+      "hubungan variabel"
+    ],
+    "answer": "Correlations digunakan untuk memeriksa hubungan antarvariabel numerik. Hasil korelasi membantu eksplorasi awal dan dapat menjadi dasar untuk analisis lebih lanjut, tetapi korelasi tidak otomatis berarti sebab-akibat."
+  },
+  {
+    "id": "scatter-plot",
+    "question": "Apa fungsi Scatter Plot?",
+    "keywords": [
+      "scatter plot",
+      "scatterplot",
+      "plot sebar",
+      "sebaran dua variabel"
+    ],
+    "answer": "Scatter Plot memvisualisasikan hubungan dua variabel. Ini berguna untuk melihat pola, tren, kelompok, hubungan non-linear, dan kemungkinan outlier."
+  },
+  {
+    "id": "box-plot",
+    "question": "Apa fungsi Box Plot?",
+    "keywords": [
+      "box plot",
+      "boxplot",
+      "median",
+      "kuartil",
+      "outlier"
+    ],
+    "answer": "Box Plot merangkum distribusi data melalui median, kuartil, dan rentang. Visualisasi ini membantu membandingkan distribusi antar kelompok serta mendeteksi nilai yang menyimpang."
+  },
+  {
+    "id": "distributions",
+    "question": "Apa fungsi Distributions?",
+    "keywords": [
+      "distributions",
+      "distribution",
+      "distribusi data",
+      "histogram"
+    ],
+    "answer": "Distributions membantu melihat bentuk distribusi suatu variabel, misalnya konsentrasi nilai, kemencengan, dan rentang. Ini berguna untuk eksplorasi sebelum pemodelan."
+  },
+  {
+    "id": "heat-map",
+    "question": "Apa fungsi Heat Map?",
+    "keywords": [
+      "heat map",
+      "heatmap",
+      "peta panas"
+    ],
+    "answer": "Heat Map menampilkan nilai dalam bentuk matriks berwarna sehingga pola dan perbedaan antarbaris atau kolom lebih mudah dikenali. Ini sering berguna untuk eksplorasi pola pada data berdimensi banyak."
+  }
+]

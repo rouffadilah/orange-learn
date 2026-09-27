@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {{ widget["nama"] }} - orange-learn
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/css/style.css"
+    >
+
+</head>
+
+<body>
+
+<div class="app">
+
+    {% include "_sidebar.html" %}
+
+
+    <main class="main">
+
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
+
+            <div>
+
+                <h1>
+                    {{ widget["nama"] }}
+                </h1>
+
+                <p>
+                    {{ widget["kategori"] }}
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <section class="content">
+
+            <a
+                href="/widget"
+                class="back-link"
+            >
+                ← Kembali ke Widget
+            </a>
+
+
+            <article class="materi-detail">
+
+                <div class="detail-badge">
+
+                    {{ widget["kategori"] }}
+
+                </div>
+
+
+                <h2>
+                    🧩 {{ widget["nama"] }}
+                </h2>
+
+
+                <p class="detail-description">
+
+                    {{ widget["deskripsi"] }}
+
+                </p>
+
+
+                <div class="widget-info-grid">
+
+                    <div>
+
+                        <strong>
+                            Tingkat
+                        </strong>
+
+                        <p>
+                            {{ widget["tingkat"] }}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            Input
+                        </strong>
+
+                        <p>
+                            {{ widget["input_data"] }}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            Output
+                        </strong>
+
+                        <p>
+                            {{ widget["output_data"] }}
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <hr>
+
+
+                <h3>
+                    Fungsi Widget
+                </h3>
+
+                <p class="detail-description">
+
+                    {{ widget["fungsi"] }}
+
+                </p>
+
+
+                <h3>
+                    Contoh Workflow
+                </h3>
+
+
+                <pre class="workflow-code">{{ widget["contoh"] }}</pre>
+
+
+                <div class="detail-actions">
+
+                    <a
+                        href="/widget"
+                        class="btn"
+                    >
+                        ← Kembali
+                    </a>
+
+                </div>
+
+            </article>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+
+</html>

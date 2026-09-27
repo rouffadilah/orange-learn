@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {{ materi["judul"] }} - orange-learn
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/css/style.css"
+    >
+
+</head>
+
+
+<body>
+
+<div class="app">
+
+    {% include "_sidebar.html" %}
+
+
+    <main class="main">
+
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
+
+            <div>
+
+                <h1>
+                    {{ materi["judul"] }}
+                </h1>
+
+                <p>
+                    {{ materi["kategori"] }}
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <section class="content">
+
+            <a
+                href="/materi"
+                class="back-link"
+            >
+                ← Kembali ke Materi
+            </a>
+
+
+            <article class="materi-detail">
+
+                <div class="detail-badge">
+
+                    {{ materi["kategori"] }}
+
+                </div>
+
+
+                <h2>
+                    {{ materi["judul"] }}
+                </h2>
+
+
+                <p class="detail-description">
+
+                    {{ materi["deskripsi"] }}
+
+                </p>
+
+
+                <div class="detail-level">
+
+                    Tingkat:
+                    <strong>
+                        {{ materi["tingkat"] }}
+                    </strong>
+
+                </div>
+
+
+                <hr>
+
+
+                <div class="materi-content">
+
+                    {{ materi["isi"]|safe }}
+
+                </div>
+
+
+                <div class="detail-actions">
+
+                    <a
+                        href="/materi"
+                        class="btn"
+                    >
+                        ← Daftar Materi
+                    </a>
+
+                </div>
+
+            </article>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+
+</html>

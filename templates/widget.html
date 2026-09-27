@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Widget - orange-learn</title>
+
+    <link
+        rel="stylesheet"
+        href="/css/style.css"
+    >
+
+</head>
+
+<body>
+
+<div class="app">
+
+    {% include "_sidebar.html" %}
+
+
+    <main class="main">
+
+        <header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button>
+
+            <div>
+
+                <h1>
+                    Widget Orange Data Mining
+                </h1>
+
+                <p>
+                    Kenali fungsi dan penggunaan setiap widget.
+                </p>
+
+            </div>
+
+        </header>
+
+
+        <section class="content">
+
+            <form
+                method="GET"
+                action="/widget"
+                class="search-box"
+            >
+
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search }}"
+                    placeholder="🔎 Cari widget, misalnya Random Forest..."
+                >
+
+                <select name="kategori">
+
+                    <option value="">
+                        Semua Kategori
+                    </option>
+
+                    {% for item in kategori_data %}
+
+                    <option
+                        value="{{ item['kategori'] }}"
+                        {% if kategori == item['kategori'] %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ item['kategori'] }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+                <button type="submit">
+                    Cari
+                </button>
+
+            </form>
+
+
+            <div class="materi-header">
+
+                <h2>
+                    Katalog Widget
+                </h2>
+
+                <span>
+                    {{ widget|length }} widget
+                </span>
+
+            </div>
+
+
+            <div class="widget-grid">
+
+                {% for item in widget %}
+
+                <div class="widget-card">
+
+                    <div class="widget-top">
+
+                        <div class="widget-icon">
+                            🧩
+                        </div>
+
+                        <span class="widget-level">
+                            {{ item["tingkat"] }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="widget-category">
+
+                        {{ item["kategori"] }}
+
+                    </div>
+
+
+                    <h3>
+                        {{ item["nama"] }}
+                    </h3>
+
+
+                    <p>
+                        {{ item["deskripsi"] }}
+                    </p>
+
+
+                    <div class="widget-function">
+
+                        <strong>
+                            Fungsi:
+                        </strong>
+
+                        {{ item["fungsi"] }}
+
+                    </div>
+
+
+                    <a
+                        href="/widget/{{ item['id'] }}"
+                        class="btn"
+                    >
+                        Lihat Detail →
+                    </a>
+
+                </div>
+
+                {% else %}
+
+                <div class="empty">
+
+                    <div>
+                        🔎
+                    </div>
+
+                    <h3>
+                        Widget tidak ditemukan
+                    </h3>
+
+                    <p>
+                        Coba kata pencarian lainnya.
+                    </p>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+
+</html>

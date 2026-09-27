@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis - orange-learn</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+      .quiz-card{background:#fff;border-radius:16px;padding:24px;margin-bottom:18px;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+      .quiz-card h3{margin-top:0}.option{display:block;margin:10px 0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;cursor:pointer}.option input{margin-right:8px}
+      .quiz-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.result{font-weight:700;margin-top:14px}
+    </style>
+</head>
+<body>
+<div class="app">
+{% include "_sidebar.html" %}
+<main class="main">
+<header class="topbar"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button><div><h1>Kuis</h1><p>Uji pemahaman dasar Orange Data Mining</p></div><div class="status"><span></span>Sistem Online</div></header>
+<section class="content">
+<div class="welcome"><div><h2>Kuis Cepat 🎯</h2><p>Pilih satu jawaban pada setiap soal, kemudian tekan Nilai Kuis.</p></div></div>
+<form id="quizForm">
+<div class="quiz-card"><h3>1. Widget apa yang digunakan untuk memuat dataset dari sebuah file?</h3><label class="option"><input type="radio" name="q1" value="A"> A. File</label><label class="option"><input type="radio" name="q1" value="B"> B. Data Table</label><label class="option"><input type="radio" name="q1" value="C"> C. Test & Score</label></div>
+<div class="quiz-card"><h3>2. Widget yang digunakan untuk melihat dataset dalam bentuk tabel adalah...</h3><label class="option"><input type="radio" name="q2" value="A"> A. Data Table</label><label class="option"><input type="radio" name="q2" value="B"> B. Random Forest</label><label class="option"><input type="radio" name="q2" value="C"> C. Confusion Matrix</label></div>
+<div class="quiz-card"><h3>3. Algoritma yang termasuk model klasifikasi adalah...</h3><label class="option"><input type="radio" name="q3" value="A"> A. K-Means</label><label class="option"><input type="radio" name="q3" value="B"> B. Random Forest</label><label class="option"><input type="radio" name="q3" value="C"> C. Association Rules</label></div>
+<div class="quiz-card"><h3>4. Widget yang umum digunakan untuk mengevaluasi performa model adalah...</h3><label class="option"><input type="radio" name="q4" value="A"> A. File</label><label class="option"><input type="radio" name="q4" value="B"> B. Test & Score</label><label class="option"><input type="radio" name="q4" value="C"> C. Data Table</label></div>
+<div class="quiz-card"><h3>5. K-Means termasuk metode...</h3><label class="option"><input type="radio" name="q5" value="A"> A. Clustering</label><label class="option"><input type="radio" name="q5" value="B"> B. Regresi</label><label class="option"><input type="radio" name="q5" value="C"> C. Evaluasi</label></div>
+<div class="quiz-actions"><button type="submit" class="btn">Nilai Kuis</button><button type="button" class="btn" onclick="document.getElementById('quizForm').reset();document.getElementById('result').textContent='';">Reset</button></div>
+<div id="result" class="result" aria-live="polite"></div>
+</form>
+</section>
+</main>
+</div>
+<script>
+const keys={q1:'A',q2:'A',q3:'B',q4:'B',q5:'A'};
+document.getElementById('quizForm').addEventListener('submit',e=>{e.preventDefault();let score=0;Object.entries(keys).forEach(([q,a])=>{const el=document.querySelector(`input[name="${q}"]:checked`);if(el&&el.value===a)score++;});document.getElementById('result').textContent=`Nilai: ${score}/5. ${score===5?'Sangat baik!':score>=3?'Bagus, lanjutkan latihan.':'Silakan pelajari materi dan coba lagi.'}`;});
+</script>
+<script src="/js/app.js"></script>
+</body>
+</html>

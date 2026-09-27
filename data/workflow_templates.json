@@ -1,0 +1,157 @@
+[
+  {
+    "id": "classification",
+    "name": "Klasifikasi",
+    "description": "Digunakan untuk memprediksi kategori atau kelas.",
+    "keywords": [
+      "klasifikasi",
+      "classification",
+      "lulus",
+      "tidak lulus",
+      "kategori",
+      "kelas",
+      "prediksi kelas",
+      "status"
+    ],
+    "widgets": [
+      "File",
+      "Select Columns",
+      "Random Forest",
+      "Test & Score",
+      "Confusion Matrix"
+    ]
+  },
+  {
+    "id": "regression",
+    "name": "Regresi",
+    "description": "Digunakan untuk memprediksi nilai numerik.",
+    "keywords": [
+      "regresi",
+      "regression",
+      "prediksi nilai",
+      "harga",
+      "jumlah",
+      "nilai numerik"
+    ],
+    "widgets": [
+      "File",
+      "Select Columns",
+      "Linear Regression",
+      "Test & Score",
+      "Predictions"
+    ]
+  },
+  {
+    "id": "clustering",
+    "name": "Clustering",
+    "description": "Digunakan untuk mengelompokkan data berdasarkan kemiripan.",
+    "keywords": [
+      "clustering",
+      "cluster",
+      "pengelompokan",
+      "kelompok",
+      "segmentasi",
+      "k-means",
+      "kmeans"
+    ],
+    "widgets": [
+      "File",
+      "Select Columns",
+      "k-Means",
+      "Silhouette Plot",
+      "Scatter Plot"
+    ]
+  },
+  {
+    "id": "eda",
+    "name": "Exploratory Data Analysis",
+    "description": "Digunakan untuk mengeksplorasi karakteristik dan pola dataset.",
+    "keywords": [
+      "eksplorasi",
+      "eda",
+      "analisis data",
+      "distribusi",
+      "pola data",
+      "visualisasi",
+      "eksplorasi data"
+    ],
+    "widgets": [
+      "File",
+      "Data Table",
+      "Distributions",
+      "Box Plot",
+      "Scatter Plot"
+    ]
+  },
+  {
+    "id": "preprocessing",
+    "name": "Persiapan Data",
+    "description": "Digunakan untuk membersihkan, menyaring, dan menyiapkan data sebelum analisis.",
+    "keywords": [
+      "preprocessing",
+      "persiapan data",
+      "missing value",
+      "normalisasi",
+      "cleaning",
+      "pembersihan"
+    ],
+    "widgets": [
+      "File",
+      "Select Columns",
+      "Select Rows",
+      "Impute",
+      "Normalize"
+    ]
+  },
+  {
+    "id": "feature-selection",
+    "name": "Seleksi Fitur",
+    "description": "Digunakan untuk memilih atribut yang lebih informatif sebelum pemodelan.",
+    "keywords": [
+      "seleksi fitur",
+      "feature selection",
+      "ranking fitur",
+      "fitur penting"
+    ],
+    "widgets": [
+      "File",
+      "Rank",
+      "Select Columns",
+      "Test & Score"
+    ]
+  },
+  {
+    "id": "association",
+    "name": "Aturan Asosiasi",
+    "description": "Digunakan untuk menemukan pola keterkaitan antaritem atau transaksi.",
+    "keywords": [
+      "association rules",
+      "asosiasi",
+      "aturan asosiasi",
+      "transaksi",
+      "market basket"
+    ],
+    "widgets": [
+      "File",
+      "Data Table",
+      "Association Rules"
+    ]
+  },
+  {
+    "id": "dimensionality",
+    "name": "Reduksi Dimensi",
+    "description": "Digunakan untuk menyederhanakan data berdimensi tinggi untuk eksplorasi atau pemodelan.",
+    "keywords": [
+      "reduksi dimensi",
+      "pca",
+      "dimensionality reduction",
+      "komponen utama"
+    ],
+    "widgets": [
+      "File",
+      "Normalize",
+      "PCA",
+      "Scatter Plot"
+    ]
+  }
+]

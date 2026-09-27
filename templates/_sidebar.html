@@ -1,0 +1,24 @@
+<aside class="sidebar" id="appSidebar">
+    <div class="brand-block">
+        <a class="logo" href="/" aria-label="orange-learn Dashboard">
+            <span class="logo-mark">🍊</span>
+            <span><strong>orange-learn</strong><small>Learning Studio</small></span>
+        </a>
+        <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Tutup menu">×</button>
+    </div>
+    <nav class="side-nav" aria-label="Navigasi utama">
+        <div class="nav-label">Belajar</div>
+        <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}"><span>🏠</span><span>Dashboard</span></a>
+        <a href="/materi" class="nav-link {% if request.path.startswith('/materi') %}active{% endif %}"><span>📚</span><span>Materi</span></a>
+        <a href="/widget" class="nav-link {% if request.path.startswith('/widget') %}active{% endif %}"><span>🧩</span><span>Widget</span></a>
+        <div class="nav-label">Praktik & Analisis</div>
+        <a href="/workflow" class="nav-link {% if request.path == '/workflow' %}active{% endif %}"><span>🛠️</span><span>Workflow</span></a>
+        <a href="/workflow/builder" class="nav-link {% if request.path.startswith('/workflow/builder') %}active{% endif %}"><span>🧱</span><span>Workflow Builder</span></a>
+        <a href="/latihan" class="nav-link {% if request.path.startswith('/latihan') %}active{% endif %}"><span>📝</span><span>Latihan</span></a>
+        <a href="/kuis" class="nav-link {% if request.path.startswith('/kuis') %}active{% endif %}"><span>🎯</span><span>Kuis</span></a>
+        <div class="nav-label">AI</div>
+        <a href="/ai-tutor" class="nav-link {% if request.path.startswith('/ai-tutor') %}active{% endif %}"><span>🤖</span><span>AI Tutor</span><b class="nav-badge">PRO</b></a>
+    </nav>
+    <div class="sidebar-foot"><div class="mini-status"><span></span> Sistem siap digunakan</div><small>orange-learn v2 • Orange Data Mining</small></div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
