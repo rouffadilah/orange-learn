@@ -49,14 +49,16 @@ The original SQLite database was used only to generate the migration SQL and is 
 
 Tambahkan Environment Variables di project Vercel:
 
-- `OPENAI_API_KEY` = API key OpenAI Anda
-- `OPENAI_MODEL` = `gpt-5.6-sol` (model reasoning utama; ganti jika model ini tidak tersedia di akun Anda)
-- `OPENAI_WEB_SEARCH` = `true`
-- `OPENAI_MAX_OUTPUT_TOKENS` = `2200`
-- `OPENAI_RETRY_COUNT` = `2`
-- `OPENAI_RESPONSES_URL` = `https://api.openai.com/v1/responses`
-- `OPENAI_TIMEOUT_SECONDS` = `25`
+## Environment Variables
 
-Setelah menambahkan variable, lakukan redeploy agar AI Tutor berpindah dari `Local Knowledge Mode` ke `Expert AI`.
+- `GEMINI_API_KEY` = API key Gemini dari Google AI Studio
+- `GEMINI_MODEL` = `gemini-3.8-flash`
+- `GEMINI_FALLBACK_MODEL` = `gemini-3.7-flash`
+- `GEMINI_THINKING_LEVEL` = `high`
+- `GEMINI_MAX_OUTPUT_TOKENS` = `8192`
+- `GEMINI_RETRY_COUNT` = `3`
+- `GEMINI_TIMEOUT_SECONDS` = `30`
 
 API key hanya digunakan di backend `app.py` dan tidak ditanam ke JavaScript browser.
+
+Gemini API menyediakan Free Tier dengan batas penggunaan tertentu. Model `gemini-3.8-flash` tercantum memiliki Free Tier; batas dapat berubah dan tetap tunduk pada kuota akun. Untuk aplikasi dengan volume tinggi, cek pricing resmi Google AI for Developers.

@@ -136,98 +136,132 @@ def build_local_expert_answer(question: str, knowledge_result: dict, template: d
     return "\n".join(parts)
 
 
-def _valid_openai_key(value: str | None) -> bool:
+def _valid_gemini_key(value: str | None) -> bool:
     if not value:
         return False
     value = value.strip()
-    return value.startswith("sk-") and len(value) > 20
+    return len(value) >= 20 and "YOUR_" not in value.upper()
 
 
-def call_openai_expert(question: str, history: list[dict], context_text: str) -> tuple[str | None, str | None]:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not _valid_openai_key(api_key):
-        return None, "OPENAI_API_KEY belum valid atau belum dipasang."
-
-    model = os.getenv("OPENAI_MODEL", "gpt-5.6-sol")
-    endpoint = os.getenv("OPENAI_RESPONSES_URL", "https://api.openai.com/v1/responses")
-    clean_history = []
+def _gemini_contents(history: list[dict], question: str) -> list[dict]:
+    """Convert the frontend chat history into Gemini generateContent turns."""
+    contents = []
+    last_user = ""
     for item in history[-10:]:
         if not isinstance(item, dict):
             continue
         role = item.get("role")
         content = str(item.get("content", "")).strip()
-        if role in {"user", "assistant"} and content:
-            clean_history.append({"role": role, "content": content[:6000]})
+        if not content or role not in {"user", "assistant", "model"}:
+            continue
+        gemini_role = "model" if role in {"assistant", "model"} else "user"
+        # The frontend can include the current user message in history. Avoid duplicating it.
+        if gemini_role == "user" and content == question.strip():
+            last_user = content
+            continue
+        contents.append({"role": gemini_role, "parts": [{"text": content[:8000]}]})
 
-    input_messages = [
-        {"role": "developer", "content": EXPERT_SYSTEM_PROMPT},
-        *clean_history,
-        {
-            "role": "user",
-            "content": (
-                "Gunakan konteks lokal berikut bila relevan. Jangan mengarang hasil eksperimen. "
-                "Jika konteks tidak cukup, jelaskan asumsi yang diperlukan.\n\n"
-                f"KONTEKS ORANGE-LEARN:\n{context_text[:18000]}\n\n"
-                f"PERTANYAAN:\n{question}"
-            ),
-        },
-    ]
-    payload_obj = {
-        "model": model,
-        "input": input_messages,
-        "max_output_tokens": int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "2200")),
-    }
-    if os.getenv("OPENAI_WEB_SEARCH", "true").lower() == "true":
-        payload_obj["tools"] = [{"type": "web_search"}]
-    payload = json.dumps(payload_obj).encode("utf-8")
-    req = urllib.request.Request(
-        endpoint,
-        data=payload,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-        method="POST",
+    # Always end with the actual current user question.
+    contents.append({
+        "role": "user",
+        "parts": [{"text": question.strip()[:12000]}],
+    })
+    return contents
+
+
+def call_gemini_expert(question: str, history: list[dict], context_text: str) -> tuple[str | None, str | None]:
+    api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
+    if not _valid_gemini_key(api_key):
+        return None, "GEMINI_API_KEY belum valid atau belum dipasang di Vercel."
+
+    primary_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash").strip()
+    timeout = max(8, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "30")))
+    attempts = max(1, int(os.getenv("GEMINI_RETRY_COUNT", "3")))
+    max_output_tokens = max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192")))
+    thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "high").strip().lower()
+    if thinking_level not in {"low", "medium", "high"}:
+        thinking_level = "high"
+
+    system_instruction = (
+        EXPERT_SYSTEM_PROMPT
+        + "\n\nKonteks Orange Learn yang relevan:\n"
+        + context_text[:24000]
+        + "\n\nKamu adalah tutor ahli, bukan sekadar generator jawaban. "
+          "Saat menganalisis workflow, jelaskan struktur data, tipe kolom, target/class, "
+          "hubungan input-output widget, potensi data leakage, validasi, dan cara membaca hasil."
     )
-    try:
-        timeout = max(8, int(os.getenv("OPENAI_TIMEOUT_SECONDS", "45")))
-        attempts = max(1, int(os.getenv("OPENAI_RETRY_COUNT", "2")))
-        last_error = "OpenAI request gagal."
+    payload_obj = {
+        "systemInstruction": {"parts": [{"text": system_instruction}]},
+        "contents": _gemini_contents(history, question),
+        "generationConfig": {
+            "thinkingConfig": {"thinkingLevel": thinking_level},
+            "maxOutputTokens": max_output_tokens,
+        },
+    }
+
+    def request_model(model: str):
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        payload = json.dumps(payload_obj).encode("utf-8")
+        req = urllib.request.Request(
+            endpoint,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    models_to_try = [primary_model]
+    if fallback_model and fallback_model != primary_model:
+        models_to_try.append(fallback_model)
+
+    last_error = "Gemini request gagal."
+    for model_index, model in enumerate(models_to_try):
         for attempt in range(attempts):
             try:
-                with urllib.request.urlopen(req, timeout=timeout) as response:
-                    data = json.loads(response.read().decode("utf-8"))
-                break
+                data = request_model(model)
+                candidates = data.get("candidates") or []
+                if not candidates:
+                    feedback = data.get("promptFeedback") or {}
+                    reason = feedback.get("blockReason") or "tidak ada kandidat respons"
+                    return None, f"Gemini tidak mengembalikan jawaban ({reason})."
+
+                parts = ((candidates[0].get("content") or {}).get("parts") or [])
+                texts = [str(part.get("text", "")).strip() for part in parts if str(part.get("text", "")).strip()]
+                answer = "\n\n".join(texts).strip()
+                if not answer:
+                    finish_reason = candidates[0].get("finishReason", "UNKNOWN")
+                    return None, f"Gemini tidak menghasilkan teks (finish reason: {finish_reason})."
+                return answer, None
             except urllib.error.HTTPError as exc:
                 body = exc.read().decode("utf-8", errors="replace")
                 try:
-                    detail = json.loads(body).get("error", {}).get("message", body)
+                    parsed = json.loads(body)
+                    detail = parsed.get("error", {}).get("message", body)
                 except json.JSONDecodeError:
-                    detail = body[:500]
-                last_error = f"OpenAI HTTP {exc.code}: {detail}"
+                    detail = body[:700]
+                last_error = f"Gemini HTTP {exc.code}: {detail}"
+                # Model fallback is useful for unavailable/invalid model errors, not quota exhaustion.
+                if exc.code in {400, 404} and model_index + 1 < len(models_to_try):
+                    break
                 if exc.code not in {408, 409, 429, 500, 502, 503, 504} or attempt == attempts - 1:
                     return None, last_error
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(min(8, 1.5 * (attempt + 1)))
             except (urllib.error.URLError, TimeoutError) as exc:
-                last_error = f"Koneksi OpenAI gagal: {exc}"
+                last_error = f"Koneksi Gemini gagal: {exc}"
                 if attempt == attempts - 1:
                     return None, last_error
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(min(8, 1.5 * (attempt + 1)))
             except json.JSONDecodeError as exc:
-                return None, f"Respons OpenAI tidak valid: {exc}"
-        else:
-            return None, last_error
-    except Exception as exc:
-        return None, f"Kesalahan AI: {exc}"
+                return None, f"Respons Gemini tidak valid: {exc}"
+            except Exception as exc:
+                return None, f"Kesalahan Gemini: {exc}"
 
-    if isinstance(data.get("output_text"), str) and data["output_text"].strip():
-        return data["output_text"].strip()
-
-    texts = []
-    for item in data.get("output", []) or []:
-        for content in item.get("content", []) or []:
-            text_value = content.get("text")
-            if isinstance(text_value, str) and text_value.strip():
-                texts.append(text_value.strip())
-    return "\n\n".join(texts).strip() or None, None
-
+    return None, last_error
 
 def fetch_rows(table: str, order_column: str = "urutan") -> list[dict[str, Any]]:
     response = (
@@ -272,7 +306,7 @@ def home():
         jumlah_widget=len(widget_rows),
         jumlah_workflow=len(workflow_rows),
         jumlah_kuis=5,
-        expert_ai=bool(os.getenv("OPENAI_API_KEY")),
+        expert_ai=_valid_gemini_key(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
     )
 
 
@@ -353,14 +387,15 @@ def materi_detail(id):
 
 @app.route("/api/ai-status")
 def ai_status():
-    key = os.getenv("OPENAI_API_KEY", "")
-    enabled = _valid_openai_key(key)
+    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+    enabled = _valid_gemini_key(key)
     return jsonify({
         "success": True,
         "expert_mode": enabled,
-        "provider": "OpenAI Responses API" if enabled else "Local Knowledge Base",
-        "model": os.getenv("OPENAI_MODEL", "gpt-5.6-sol") if enabled else "local-expert",
-        "web_search": enabled and os.getenv("OPENAI_WEB_SEARCH", "true").lower() == "true",
+        "provider": "Google Gemini API" if enabled else "Local Knowledge Base",
+        "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash") if enabled else "local-expert",
+        "thinking_level": os.getenv("GEMINI_THINKING_LEVEL", "high") if enabled else None,
+        "web_search": False,
         "knowledge_items": len(load_orange_knowledge()),
         "workflow_templates": len(load_workflow_templates()),
     })
@@ -380,7 +415,7 @@ def api_chat():
     template = detect_workflow_type(question)
     context_chunks = [
         f"Q: {item.get('question', '')}\nA: {item.get('answer', '')}"
-        for item in knowledge_result["results"][:5]
+        for item in knowledge_result["results"][:8]
     ]
     if template:
         context_chunks.append(
@@ -389,7 +424,7 @@ def api_chat():
         )
     context_text = "\n\n".join(context_chunks) or "Tidak ada konteks lokal yang cocok."
 
-    expert_answer, ai_error = call_openai_expert(question, history, context_text)
+    expert_answer, ai_error = call_gemini_expert(question, history, context_text)
     if expert_answer:
         answer, mode = expert_answer, "expert"
     else:
