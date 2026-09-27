@@ -25,3 +25,6 @@ AI Tutor menggunakan Google Gemini melalui `GEMINI_API_KEY`. Default model `gemi
 - Page load tidak lagi memanggil API Gemini untuk sekadar diagnosis.
 - Chat memakai model cepat terlebih dahulu dan berpindah model segera saat 429/503/5xx.
 - Timeout interaktif dipangkas agar pengguna tidak menunggu terlalu lama; Local AI menjadi fallback tanpa menampilkan pesan error teknis di chat.
+
+## Panduan Fitur Visual
+Orange Learn kini menyediakan halaman `/fitur` untuk menjelaskan widget dan fitur Orange Data Mining melalui ilustrasi orisinal yang mengikuti struktur canvas, widget, port input-output, dan channel.

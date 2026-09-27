@@ -45,6 +45,10 @@ def load_workflow_templates():
     return load_json("workflow_templates.json")
 
 
+def load_orange_features():
+    return load_json("orange_features.json")
+
+
 def tokenise(text: str) -> set[str]:
     return {
         token for token in re.findall(r"[a-zA-Z0-9&+.-]+", str(text).lower()) if len(token) > 2
@@ -99,22 +103,60 @@ def search_orange_knowledge(question, limit=5):
     }
 
 
-EXPERT_SYSTEM_PROMPT = """
+EXPERT_SYSTEM_PROMPT = r"""
 Anda adalah orange-learn AI, tutor ahli Orange Data Mining untuk pembelajaran tingkat sekolah menengah hingga perguruan tinggi awal.
 Fokus utama: Orange Data Mining, widget, data preparation, exploratory data analysis, klasifikasi, regresi, clustering, evaluasi model, visualisasi, workflow, dan praktik machine learning.
 
 Aturan jawaban:
 1. Jawab dalam Bahasa Indonesia yang jelas, terstruktur, dan bertahap.
-2. Jangan hanya memberi definisi. Jelaskan kapan dipakai, mengapa dipakai, input-output, dan langkah praktik di Orange.
-3. Untuk pertanyaan workflow, berikan urutan widget menggunakan panah serta alasan tiap widget.
+2. Fokus pada jawaban yang praktis: apa yang dilakukan, kapan dipakai, mengapa, input-output, dan langkah di Orange.
+3. Untuk workflow, tulis urutan widget dengan panah Unicode sederhana seperti: File → Data Table → Test & Score.
 4. Untuk evaluasi model, jelaskan metrik yang relevan dan cara membaca hasilnya.
-5. Untuk debugging workflow, identifikasi titik putus alur, tipe data, target/class, preprocessing, dan koneksi widget berdasarkan informasi pengguna.
-6. Gunakan contoh dataset pendidikan bila cocok, tetapi jangan mengarang hasil eksperimen yang belum dijalankan.
-7. Bedakan fakta dari asumsi. Bila informasi tidak tersedia di konteks, nyatakan keterbatasannya dan sarankan verifikasi di dokumentasi Orange.
-8. Hindari jargon yang tidak dijelaskan. Gunakan heading singkat dan bullet secukupnya.
-9. Bila pengguna terlihat pemula, mulai dari konsep dasar lalu naikkan ke level teknis.
-10. Selalu akhiri dengan satu langkah berikutnya yang konkret.
+5. Untuk debugging, cek data, target/class, tipe kolom, preprocessing, leakage, dan koneksi widget.
+6. Jangan mengarang hasil eksperimen, angka akurasi, atau konfigurasi dataset yang belum diberikan.
+7. Bedakan fakta dan asumsi. Bila informasi tidak tersedia, katakan apa yang masih perlu diverifikasi.
+8. Gunakan Markdown yang bersih dan konsisten. Heading singkat, bullet secukupnya, dan paragraf pendek.
+9. JANGAN gunakan LaTeX, MathJax, delimiters seperti $, $$, \(, \), atau perintah seperti \text{}, \rightarrow, \right. Gunakan teks biasa dan simbol Unicode.
+10. JANGAN menulis garis pemisah '---', kode escape mentah, atau karakter format yang tidak perlu.
+11. Hindari pembukaan yang bertele-tele. Mulai langsung dari jawaban inti.
+12. Bila pengguna pemula, mulai dari konsep dasar lalu naikkan ke teknis.
+13. Akhiri dengan satu langkah berikutnya yang konkret dan singkat.
 """.strip()
+
+
+def clean_ai_output(text: str) -> str:
+    """Normalize common Markdown/LaTeX artifacts before sending text to the browser."""
+    value = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    replacements = {
+        "\\rightarrow": "→",
+        "\\to": "→",
+        "\\Rightarrow": "⇒",
+        "\\leftarrow": "←",
+        "\\leftrightarrow": "↔",
+        "\\geq": "≥",
+        "\\leq": "≤",
+        "\\times": "×",
+        "\\cdot": "·",
+        "\\pm": "±",
+        "\\text{": "",
+        "\\mathrm{": "",
+        "\\mathbf{": "",
+    }
+    for src, dst in replacements.items():
+        value = value.replace(src, dst)
+    # Remove common TeX wrappers/brackets.
+    value = re.sub(r"\$\$(.*?)\$\$", r"\1", value, flags=re.S)
+    value = re.sub(r"\$(.*?)\$", r"\1", value, flags=re.S)
+    value = value.replace("\\(", "").replace("\\)", "")
+    value = value.replace("\\[", "").replace("\\]", "")
+    value = value.replace("\\right", "").replace("\\left", "")
+    # Collapse noisy separators/escape-only lines.
+    value = re.sub(r"^\s*---\s*$", "", value, flags=re.M)
+    value = re.sub(r"^[ \t]*[0-9]+[.)][ \t]*$", "", value, flags=re.M)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    # Balance common braces left by \text{...} style output.
+    value = value.replace("{", "").replace("}", "")
+    return value.strip()
 
 
 def build_local_expert_answer(question: str, knowledge_result: dict, template: dict | None):
@@ -186,18 +228,20 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
     for model in [primary_model, *fallback_models]:
         if model and model not in models_to_try:
             models_to_try.append(model)
+        if len(models_to_try) >= 2:
+            break
 
     # Keep interactive chat fast. The server falls back to Local AI rather than
     # holding the browser for a long sequence of retries.
     timeout = min(6, max(4, int(os.getenv("GEMINI_TIMEOUT_SECONDS", "5"))))
-    max_output_tokens = min(3072, max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "2200"))))
+    max_output_tokens = min(2048, max(512, int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1800"))))
     temperature = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))
     temperature = min(1.0, max(0.0, temperature))
 
     system_instruction = (
         EXPERT_SYSTEM_PROMPT
         + "\n\nKonteks Orange Learn yang relevan:\n"
-        + context_text[:18000]
+        + context_text[:12000]
         + "\n\nKamu adalah tutor ahli, bukan sekadar generator jawaban. "
           "Saat menganalisis workflow, jelaskan struktur data, tipe kolom, target/class, "
           "hubungan input-output widget, potensi data leakage, validasi, dan cara membaca hasil. "
@@ -242,7 +286,7 @@ def call_gemini_expert(question: str, history: list[dict], context_text: str) ->
                 for part in parts
                 if str(part.get("text", "")).strip()
             ]
-            answer = "\n\n".join(texts).strip()
+            answer = clean_ai_output("\n\n".join(texts))
             if not answer:
                 finish_reason = candidates[0].get("finishReason", "UNKNOWN")
                 return None, f"Gemini tidak menghasilkan teks ({finish_reason})."
@@ -372,6 +416,28 @@ def widget_detail(id):
     return render_template("widget_detail.html", widget=data)
 
 
+@app.route("/fitur")
+def fitur():
+    search = request.args.get("search", "").strip()
+    kategori = request.args.get("kategori", "").strip()
+    data = load_orange_features()
+    if search:
+        needle = search.lower()
+        data = [row for row in data if any(needle in str(row.get(field) or "").lower() for field in ("name", "category", "summary", "purpose"))]
+    if kategori:
+        data = [row for row in data if row.get("category") == kategori]
+    categories = sorted({row.get("category") for row in load_orange_features() if row.get("category")})
+    return render_template("fitur.html", features=data, categories=categories, search=search, kategori=kategori)
+
+
+@app.route("/fitur/<slug>")
+def fitur_detail(slug):
+    feature = next((row for row in load_orange_features() if row.get("slug") == slug), None)
+    if feature is None:
+        return "Fitur tidak ditemukan", 404
+    return render_template("fitur_detail.html", feature=feature)
+
+
 @app.route("/materi")
 def materi():
     search = request.args.get("search", "").strip()
@@ -435,6 +501,21 @@ def api_chat():
             f"Workflow template: {template.get('name')} | {template.get('description')} | "
             f"{' → '.join(template.get('widgets', []))}"
         )
+    feature_matches = load_orange_features()
+    q_tokens = tokenise(question)
+    ranked_features = []
+    for feature in feature_matches:
+        ft = tokenise(f"{feature.get('name','')} {feature.get('category','')} {feature.get('summary','')} {feature.get('purpose','')} {' '.join(feature.get('flow', []))}")
+        score = len(q_tokens.intersection(ft))
+        if score:
+            ranked_features.append((score, feature))
+    ranked_features.sort(key=lambda pair: pair[0], reverse=True)
+    for _, feature in ranked_features[:3]:
+        context_chunks.append(
+            f"Feature guide: {feature.get('name')} | {feature.get('category')} | {feature.get('purpose')} | "
+            f"Input: {feature.get('input')} | Output: {feature.get('output')} | "
+            f"Workflow: {' → '.join(feature.get('flow', []))}"
+        )
     context_text = "\n\n".join(context_chunks) or "Tidak ada konteks lokal yang cocok."
 
     try:
@@ -442,7 +523,7 @@ def api_chat():
         if expert_answer:
             answer, mode = expert_answer, "expert"
         else:
-            answer, mode = build_local_expert_answer(question, knowledge_result, template), "local"
+            answer, mode = clean_ai_output(build_local_expert_answer(question, knowledge_result, template)), "local"
 
         return jsonify({
             "success": True,

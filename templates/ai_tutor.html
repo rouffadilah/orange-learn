@@ -9,17 +9,130 @@
 <div class="chat-input-area"><button id="generateWorkflowButton" class="generate-workflow-button" title="Buat workflow dari pertanyaan" type="button">🛠️</button><textarea id="messageInput" aria-label="Pertanyaan untuk AI Tutor" placeholder="Tulis pertanyaan, tujuan analisis, atau masalah workflow…" rows="1"></textarea><button id="sendButton" type="button" onclick="sendMessage()">➤</button></div><div class="chat-disclaimer">AI dapat membantu memberi penjelasan dan rancangan. Verifikasi konfigurasi widget serta hasil eksperimen pada Orange sebelum digunakan sebagai hasil analisis.</div></section>
 </div></section></main></div>
 <script>
-const input=document.getElementById('messageInput'),sendButton=document.getElementById('sendButton'),chatMessages=document.getElementById('chatMessages'),generateWorkflowButton=document.getElementById('generateWorkflowButton'),modeLabel=document.getElementById('aiModeLabel'),newChatButton=document.getElementById('newChatButton');let conversation=[];
-async function readApiResponse(response){const raw=await response.text();let data=null;try{data=raw?JSON.parse(raw):null;}catch(err){throw new Error(`Server HTTP ${response.status}: ${raw.slice(0,240)}`);}if(!response.ok){throw new Error(data?.message||data?.answer||`Server HTTP ${response.status}`);}return data;}
-document.addEventListener('DOMContentLoaded',async()=>{try{const status=await fetch('/api/ai-status',{cache:'no-store'});const s=await readApiResponse(status);modeLabel.textContent=s.expert_mode?`Gemini AI • ${s.model} • Siap`:'Local AI • siap digunakan';}catch(_){modeLabel.textContent='Local AI • siap digunakan';}});
-newChatButton.addEventListener('click',()=>{conversation=[];chatMessages.innerHTML=`<div class="message bot"><div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong><p>Chat baru dimulai. Jelaskan tujuan analisis atau masalah Orange yang ingin Anda pecahkan.</p></div></div>`;});
+const input=document.getElementById('messageInput'),sendButton=document.getElementById('sendButton'),chatMessages=document.getElementById('chatMessages'),generateWorkflowButton=document.getElementById('generateWorkflowButton'),modeLabel=document.getElementById('aiModeLabel'),newChatButton=document.getElementById('newChatButton');
+let conversation=[];let thinkingTimer=null;
+
+async function readApiResponse(response){
+  const raw=await response.text();let data=null;
+  try{data=raw?JSON.parse(raw):null;}catch(err){throw new Error(`Server HTTP ${response.status}`);}
+  if(!response.ok){throw new Error(data?.message||data?.answer||`Server HTTP ${response.status}`);}return data;
+}
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  try{
+    const status=await fetch('/api/ai-status',{cache:'no-store'});const s=await readApiResponse(status);
+    modeLabel.textContent=s.expert_mode?`Gemini AI • ${s.model} • Siap`:'AI lokal • siap digunakan';
+  }catch(_){modeLabel.textContent='AI siap digunakan';}
+});
+
+newChatButton.addEventListener('click',()=>{
+  conversation=[];removeThinking();
+  chatMessages.innerHTML=`<div class="message bot"><div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong><div class="ai-rich-text"><p>Chat baru dimulai. Jelaskan tujuan analisis atau masalah Orange yang ingin Anda pecahkan.</p></div></div></div>`;
+});
+
 generateWorkflowButton.addEventListener('click',generateWorkflow);
 function askQuestion(question){input.value=question;sendMessage();}
-async function generateWorkflow(){const message=input.value.trim();if(!message){addMessage('Tuliskan tujuan analisis terlebih dahulu.','bot');return;}addMessage(message,'user');setLoading(true,generateWorkflowButton);try{const response=await fetch('/api/generate-workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});const data=await readApiResponse(response);if(!data.success){addMessage(data.message||'Workflow belum dapat dibuat.','bot');return;}addWorkflowMessage(data);}catch(_){addMessage('Workflow belum dapat dibuat. Coba lagi atau jelaskan tujuan analisis dengan lebih spesifik.','bot');}finally{setLoading(false,generateWorkflowButton);}input.value='';}
+
+async function generateWorkflow(){
+  const message=input.value.trim();
+  if(!message){addMessage('Tuliskan tujuan analisis terlebih dahulu.','bot');return;}
+  addMessage(message,'user');input.value='';showThinking('Merancang workflow',generateWorkflowButton);
+  try{
+    const response=await fetch('/api/generate-workflow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});
+    const data=await readApiResponse(response);
+    if(!data.success){addMessage(data.message||'Workflow belum dapat dibuat.','bot');return;}
+    addWorkflowMessage(data);
+  }catch(_){addMessage('Workflow belum dapat dibuat sekarang. Coba lagi sebentar lagi.','bot');}
+  finally{removeThinking();setLoading(false,generateWorkflowButton);}
+}
+
 function createWorkflowResponse(data){return `<div class="workflow-result"><div class="workflow-result-title">${escapeHtml(data.name)}</div><p>${escapeHtml(data.description)}</p><div class="workflow-chip-row">${data.widgets.map((w,i)=>`<span>${i+1}. ${escapeHtml(w)}</span>`).join('')}</div></div>`;}
-function addWorkflowMessage(data){const message=document.createElement('div');message.className='message bot';message.innerHTML=`<div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong>${createWorkflowResponse(data)}<button class="use-workflow-button" type="button">🚀 Gunakan Workflow</button></div>`;message.querySelector('button').addEventListener('click',()=>useGeneratedWorkflow(data.widgets));chatMessages.appendChild(message);scrollChat();}
+function addWorkflowMessage(data){
+  const message=document.createElement('div');message.className='message bot';
+  message.innerHTML=`<div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong>${createWorkflowResponse(data)}<button class="use-workflow-button" type="button">🚀 Gunakan Workflow</button></div>`;
+  message.querySelector('button').addEventListener('click',()=>useGeneratedWorkflow(data.widgets));chatMessages.appendChild(message);scrollChat();
+}
 function useGeneratedWorkflow(widgets){localStorage.setItem('orangeGeneratedWorkflow',JSON.stringify(widgets));window.location.href='/workflow/builder';}
-async function sendMessage(){const message=input.value.trim();if(!message||sendButton.disabled)return;addMessage(message,'user');input.value='';setLoading(true,sendButton);conversation.push({role:'user',content:message});const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);try{const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,history:conversation.slice(-10)}),signal:controller.signal});const data=await readApiResponse(response);if(!data.success)throw new Error(data.message||'Layanan AI tidak tersedia');addMessage(data.answer,'bot',data.mode);conversation.push({role:'assistant',content:data.answer});}catch(error){console.error(error);const fallback='Mesin AI sedang sibuk. Saya tetap memberikan bantuan dari knowledge base Orange Learn. Anda dapat melanjutkan dengan pertanyaan berikutnya.';addMessage(fallback,'bot','local');}finally{clearTimeout(timer);setLoading(false,sendButton);}}
-function addMessage(text,type,mode=''){const message=document.createElement('div');message.className=`message ${type}`;const avatar=type==='bot'?'🤖':'👤',name=type==='bot'?'orange-learn AI':'Anda';const modeChip=type==='bot'&&mode?`<span class="ai-mode-chip">${mode==='expert'?'Gemini AI':'Local AI'}</span>`:'';const body=formatAIText(text);message.innerHTML=`<div class="message-avatar">${avatar}</div><div class="message-content"><strong>${name}${modeChip}</strong><p>${body}</p></div>`;chatMessages.appendChild(message);scrollChat();}
-function formatAIText(value){const safe=escapeHtml(value);return safe.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/^### (.*)$/gm,'<h4>$1</h4>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/^- (.*)$/gm,'• $1').replace(/\n/g,'<br>');}function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}function scrollChat(){chatMessages.scrollTop=chatMessages.scrollHeight;}function setLoading(loading,button){button.disabled=loading;if(button===sendButton)button.textContent=loading?'⏳':'➤';else button.textContent=loading?'⏳':'🛠️';}input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+
+async function sendMessage(){
+  const message=input.value.trim();
+  if(!message||sendButton.disabled)return;
+  addMessage(message,'user');input.value='';conversation.push({role:'user',content:message});
+  showThinking('Menganalisis pertanyaan',sendButton);
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),11000);
+  try{
+    const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,history:conversation.slice(-10)}),signal:controller.signal});
+    const data=await readApiResponse(response);
+    if(!data.success)throw new Error(data.message||'Layanan AI tidak tersedia');
+    addMessage(data.answer,'bot',data.mode);conversation.push({role:'assistant',content:data.answer});
+  }catch(error){
+    console.error(error);
+    addMessage('Maaf, respons AI belum berhasil dimuat. Coba kirim ulang pertanyaan Anda.','bot','local');
+  }finally{clearTimeout(timer);removeThinking();setLoading(false,sendButton);}
+}
+
+function addMessage(text,type,mode=''){
+  const message=document.createElement('div');message.className=`message ${type}`;
+  const avatar=type==='bot'?'🤖':'👤',name=type==='bot'?'orange-learn AI':'Anda';
+  const modeChip=type==='bot'&&mode?`<span class="ai-mode-chip">${mode==='expert'?'Gemini AI':'Knowledge Base'}</span>`:'';
+  const body=type==='bot'?renderAIHtml(text):`<p>${escapeHtml(text)}</p>`;
+  message.innerHTML=`<div class="message-avatar">${avatar}</div><div class="message-content"><strong>${name}${modeChip}</strong><div class="ai-rich-text">${body}</div></div>`;
+  chatMessages.appendChild(message);scrollChat();
+}
+
+function renderAIHtml(value){
+  const source=cleanDisplayText(value);const lines=source.split('\n');let html='';let paragraph=[];let inUl=false;let inOl=false;
+  const flushParagraph=()=>{if(paragraph.length){html+=`<p>${paragraph.join('<br>')}</p>`;paragraph=[];}};
+  const closeLists=()=>{if(inUl){html+='</ul>';inUl=false;}if(inOl){html+='</ol>';inOl=false;}};
+  for(const raw of lines){
+    const line=raw.trim();
+    if(!line){flushParagraph();closeLists();continue;}
+    let m=line.match(/^###\s+(.+)$/);if(m){flushParagraph();closeLists();html+=`<h4>${inlineFormat(m[1])}</h4>`;continue;}
+    m=line.match(/^##\s+(.+)$/);if(m){flushParagraph();closeLists();html+=`<h3>${inlineFormat(m[1])}</h3>`;continue;}
+    m=line.match(/^#\s+(.+)$/);if(m){flushParagraph();closeLists();html+=`<h2>${inlineFormat(m[1])}</h2>`;continue;}
+    m=line.match(/^[-•*]\s+(.+)$/);if(m){flushParagraph();if(inOl){html+='</ol>';inOl=false;}if(!inUl){html+='<ul>';inUl=true;}html+=`<li>${inlineFormat(m[1])}</li>`;continue;}
+    m=line.match(/^\d+[.)]\s+(.+)$/);if(m){flushParagraph();if(inUl){html+='</ul>';inUl=false;}if(!inOl){html+='<ol>';inOl=true;}html+=`<li>${inlineFormat(m[1])}</li>`;continue;}
+    if(/^[-_=]{4,}$/.test(line)){flushParagraph();closeLists();continue;}
+    closeLists();paragraph.push(inlineFormat(line));
+  }
+  flushParagraph();closeLists();return html||'<p></p>';
+}
+
+function inlineFormat(value){
+  let safe=escapeHtml(value);
+  safe=safe.replace(/`([^`]+)`/g,'<code>$1</code>');
+  safe=safe.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  safe=safe.replace(/(^|\s)\*([^*]+)\*(?=\s|$)/g,'$1<em>$2</em>');
+  return safe;
+}
+
+function cleanDisplayText(value){
+  let s=String(value??'').replace(/\r\n?/g,'\n');
+  s=s.replace(/\$\$(.*?)\$\$/gs,'$1').replace(/\$(.*?)\$/gs,'$1');
+  s=s.replace(/\\(text|mathrm|mathbf)\{([^{}]*)\}/g,'$2');
+  s=s.replace(/\\(rightarrow|to)\b/g,'→').replace(/\\(Rightarrow)\b/g,'⇒').replace(/\\(leftarrow)\b/g,'←').replace(/\\(leftrightarrow)\b/g,'↔');
+  s=s.replace(/\\(geq|leq|times|cdot|pm)\b/g,m=>({'\\geq':'≥','\\leq':'≤','\\times':'×','\\cdot':'·','\\pm':'±'}[m]||m));
+  s=s.replace(/\\left|\\right|\\\(|\\\)|\\\[|\\\]/g,'');
+  s=s.replace(/^\s*---\s*$/gm,'');
+  s=s.replace(/\\\\+/g,' ');
+  s=s.replace(/[{}]/g,'');
+  s=s.replace(/\n{3,}/g,'\n\n');
+  s=s.replace(/[ \t]{2,}/g,' ');
+  return s.trim();
+}
+
+function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function scrollChat(){chatMessages.scrollTop=chatMessages.scrollHeight;}
+
+function showThinking(label,button){
+  removeThinking();setLoading(true,button);
+  const node=document.createElement('div');node.className='message bot thinking-message';node.id='aiThinking';
+  node.innerHTML=`<div class="message-avatar thinking-avatar">🤖</div><div class="message-content thinking-content"><strong>orange-learn AI</strong><div class="thinking-card"><span id="thinkingLabel">${escapeHtml(label)}</span><span class="thinking-dots"><i></i><i></i><i></i></span></div><div class="thinking-subtext">Jawaban sedang disiapkan. Mohon tunggu sebentar…</div></div>`;
+  chatMessages.appendChild(node);scrollChat();
+  const stages=['Menganalisis pertanyaan','Mencari konteks widget','Menyusun langkah workflow','Merangkum jawaban'];let idx=Math.max(0,stages.indexOf(label));
+  thinkingTimer=setInterval(()=>{idx=(idx+1)%stages.length;const target=document.getElementById('thinkingLabel');if(target)target.textContent=stages[idx];},900);
+}
+function removeThinking(){if(thinkingTimer){clearInterval(thinkingTimer);thinkingTimer=null;}document.getElementById('aiThinking')?.remove();}
+function setLoading(loading,button){button.disabled=loading;if(button===sendButton){button.setAttribute('aria-busy',loading?'true':'false');button.textContent=loading?'…':'➤';}else{button.textContent=loading?'…':'🛠️';}}
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
 </script><script src="/js/app.js"></script></body></html>

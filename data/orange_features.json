@@ -1,0 +1,901 @@
+[
+  {
+    "slug": "file",
+    "name": "File",
+    "category": "Data",
+    "icon": "📁",
+    "level": "Dasar",
+    "summary": "Membuka dataset dan mengirimkannya ke workflow.",
+    "purpose": "Memasukkan data dari file yang didukung Orange ke dalam workflow.",
+    "input": "File / dataset",
+    "output": "Data table",
+    "when_use": "Gunakan sebagai titik awal workflow ketika data Anda berasal dari file.",
+    "steps": [
+      "Buka widget File",
+      "Pilih dataset",
+      "Periksa struktur kolom",
+      "Hubungkan output Data ke widget berikutnya"
+    ],
+    "inputs": [
+      "Dataset"
+    ],
+    "outputs": [
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "data-table",
+    "name": "Data Table",
+    "category": "Data",
+    "icon": "▦",
+    "level": "Dasar",
+    "summary": "Menampilkan isi dataset dalam bentuk tabel interaktif.",
+    "purpose": "Memeriksa baris, kolom, tipe data, dan subset data sebelum analisis.",
+    "input": "Data",
+    "output": "Data / Selection",
+    "when_use": "Gunakan setelah import data untuk inspeksi awal dan pengecekan kualitas data.",
+    "steps": [
+      "Hubungkan Data dari File",
+      "Periksa nama dan tipe kolom",
+      "Periksa nilai yang hilang atau tidak wajar",
+      "Pilih baris bila diperlukan"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Data",
+      "Selected data"
+    ],
+    "flow": [
+      "File",
+      "Data Table",
+      "Scatter Plot"
+    ]
+  },
+  {
+    "slug": "select-columns",
+    "name": "Select Columns",
+    "category": "Transform",
+    "icon": "◫",
+    "level": "Dasar",
+    "summary": "Mengatur kolom mana yang menjadi fitur, target, meta, atau diabaikan.",
+    "purpose": "Menentukan peran variabel sebelum preprocessing atau pemodelan.",
+    "input": "Data",
+    "output": "Data dengan domain terpilih",
+    "when_use": "Gunakan sebelum model ketika dataset memiliki banyak kolom atau target belum ditetapkan.",
+    "steps": [
+      "Masukkan Data",
+      "Pindahkan kolom ke Features",
+      "Tetapkan Target/Class",
+      "Pindahkan ID/catatan ke Meta"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Select Columns",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "data-sampler",
+    "name": "Data Sampler",
+    "category": "Transform",
+    "icon": "◌",
+    "level": "Menengah",
+    "summary": "Mengambil sampel data untuk eksplorasi atau eksperimen.",
+    "purpose": "Membuat subset data secara acak atau terkontrol.",
+    "input": "Data",
+    "output": "Data sample / Remaining data",
+    "when_use": "Berguna ketika dataset besar dan Anda ingin menguji workflow dengan subset data.",
+    "steps": [
+      "Masukkan Data",
+      "Tentukan metode sampling",
+      "Pilih ukuran/proporsi sampel",
+      "Gunakan sample untuk analisis"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Sample",
+      "Remaining data"
+    ],
+    "flow": [
+      "File",
+      "Data Sampler",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "edit-domain",
+    "name": "Edit Domain",
+    "category": "Data",
+    "icon": "✎",
+    "level": "Menengah",
+    "summary": "Mengubah metadata dan domain variabel.",
+    "purpose": "Menyesuaikan nama, tipe, atau nilai kategori pada variabel.",
+    "input": "Data",
+    "output": "Data",
+    "when_use": "Gunakan saat metadata kolom perlu dibersihkan sebelum analisis.",
+    "steps": [
+      "Masukkan Data",
+      "Pilih variabel",
+      "Atur nama/tipenya",
+      "Teruskan Data"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Edit Domain",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "preprocess",
+    "name": "Preprocess",
+    "category": "Transform",
+    "icon": "🧹",
+    "level": "Menengah",
+    "summary": "Menyusun langkah preprocessing seperti imputasi, normalisasi, dan seleksi fitur.",
+    "purpose": "Mempersiapkan data agar sesuai dengan kebutuhan analisis dan model.",
+    "input": "Data",
+    "output": "Preprocessed data / preprocessing object",
+    "when_use": "Gunakan sebelum learner saat data membutuhkan transformasi.",
+    "steps": [
+      "Masukkan Data",
+      "Tambahkan preprocessor yang diperlukan",
+      "Periksa urutan transformasi",
+      "Hubungkan hasil ke learner/evaluasi"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Preprocessed data"
+    ],
+    "flow": [
+      "File",
+      "Preprocess",
+      "Random Forest",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "impute",
+    "name": "Impute",
+    "category": "Transform",
+    "icon": "🩹",
+    "level": "Menengah",
+    "summary": "Menangani nilai yang hilang.",
+    "purpose": "Mengganti missing values menggunakan strategi yang dipilih.",
+    "input": "Data",
+    "output": "Data terimputasi",
+    "when_use": "Gunakan ketika dataset memiliki nilai kosong yang mengganggu analisis.",
+    "steps": [
+      "Cek missing values",
+      "Pilih strategi imputasi",
+      "Terapkan ke data",
+      "Validasi hasil"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Impute",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "normalize",
+    "name": "Normalize",
+    "category": "Transform",
+    "icon": "↕",
+    "level": "Menengah",
+    "summary": "Menyetarakan skala variabel numerik.",
+    "purpose": "Mengurangi pengaruh perbedaan skala pada metode yang sensitif terhadap jarak atau magnitudo.",
+    "input": "Data",
+    "output": "Normalized data",
+    "when_use": "Sering berguna sebelum metode berbasis jarak seperti kNN atau clustering.",
+    "steps": [
+      "Masukkan data numerik",
+      "Pilih metode normalisasi",
+      "Tinjau skala hasil",
+      "Gunakan data hasil untuk analisis"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Normalize",
+      "kNN"
+    ]
+  },
+  {
+    "slug": "distributions",
+    "name": "Distributions",
+    "category": "Visualize",
+    "icon": "▥",
+    "level": "Dasar",
+    "summary": "Melihat distribusi nilai variabel.",
+    "purpose": "Memahami pola, kemencengan, frekuensi, dan kelas pada data.",
+    "input": "Data",
+    "output": "Selection / visual analysis",
+    "when_use": "Gunakan pada tahap eksplorasi data untuk memahami sebaran variabel.",
+    "steps": [
+      "Masukkan Data",
+      "Pilih variabel",
+      "Bandingkan distribusi",
+      "Cari pola atau anomali"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Selected data"
+    ],
+    "flow": [
+      "File",
+      "Data Table",
+      "Distributions"
+    ]
+  },
+  {
+    "slug": "box-plot",
+    "name": "Box Plot",
+    "category": "Visualize",
+    "icon": "▣",
+    "level": "Dasar",
+    "summary": "Membandingkan distribusi dan outlier melalui box plot.",
+    "purpose": "Melihat median, rentang, dan kandidat outlier pada variabel numerik.",
+    "input": "Data",
+    "output": "Selection",
+    "when_use": "Cocok untuk membandingkan sebaran antar kelompok.",
+    "steps": [
+      "Masukkan Data",
+      "Pilih variabel dan kelompok",
+      "Perhatikan median dan rentang",
+      "Investigasi outlier"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Selected data"
+    ],
+    "flow": [
+      "File",
+      "Box Plot",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "scatter-plot",
+    "name": "Scatter Plot",
+    "category": "Visualize",
+    "icon": "✣",
+    "level": "Dasar",
+    "summary": "Melihat hubungan dua variabel numerik secara visual.",
+    "purpose": "Mengeksplorasi korelasi, kelompok, tren, dan outlier.",
+    "input": "Data",
+    "output": "Selected data",
+    "when_use": "Gunakan untuk eksplorasi hubungan dua variabel atau validasi pola clustering.",
+    "steps": [
+      "Masukkan Data",
+      "Pilih sumbu X dan Y",
+      "Warnai berdasarkan kelas bila perlu",
+      "Pilih titik menarik untuk inspeksi"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Selected data"
+    ],
+    "flow": [
+      "File",
+      "Scatter Plot",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "heat-map",
+    "name": "Heat Map",
+    "category": "Visualize",
+    "icon": "▦",
+    "level": "Menengah",
+    "summary": "Menampilkan pola nilai dalam matriks berwarna.",
+    "purpose": "Membantu menemukan pola, kelompok, dan perbedaan intensitas antar observasi/fitur.",
+    "input": "Data",
+    "output": "Selected data",
+    "when_use": "Gunakan untuk melihat pola global sebelum analisis lebih lanjut.",
+    "steps": [
+      "Masukkan Data",
+      "Pilih variabel",
+      "Atur pengurutan/kelompok",
+      "Interpretasikan pola warna"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Selected data"
+    ],
+    "flow": [
+      "File",
+      "Heat Map",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "tree",
+    "name": "Tree",
+    "category": "Model",
+    "icon": "🌳",
+    "level": "Menengah",
+    "summary": "Membangun model Decision Tree yang mudah diinterpretasikan.",
+    "purpose": "Membuat aturan pemisahan data berbentuk struktur pohon.",
+    "input": "Data / Learner",
+    "output": "Model / Data",
+    "when_use": "Cocok untuk klasifikasi atau regresi ketika interpretabilitas penting.",
+    "steps": [
+      "Siapkan target/class",
+      "Masukkan Data ke Tree",
+      "Hubungkan ke Test & Score",
+      "Lihat struktur dengan Tree Viewer"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model",
+      "Data"
+    ],
+    "flow": [
+      "File",
+      "Select Columns",
+      "Tree",
+      "Test & Score",
+      "Tree Viewer"
+    ]
+  },
+  {
+    "slug": "random-forest",
+    "name": "Random Forest",
+    "category": "Model",
+    "icon": "🌲",
+    "level": "Menengah",
+    "summary": "Membangun ensemble dari banyak decision tree.",
+    "purpose": "Menghasilkan model klasifikasi atau regresi yang menggabungkan banyak tree.",
+    "input": "Data",
+    "output": "Model",
+    "when_use": "Berguna sebagai baseline kuat untuk banyak dataset tabular.",
+    "steps": [
+      "Tetapkan target",
+      "Siapkan fitur",
+      "Hubungkan Data ke Random Forest",
+      "Evaluasi dengan Test & Score"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Select Columns",
+      "Random Forest",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "logistic-regression",
+    "name": "Logistic Regression",
+    "category": "Model",
+    "icon": "Σ",
+    "level": "Menengah",
+    "summary": "Model klasifikasi linear untuk memprediksi kelas.",
+    "purpose": "Membangun classifier probabilistik berbasis hubungan linear.",
+    "input": "Data",
+    "output": "Model",
+    "when_use": "Cocok sebagai baseline yang sederhana dan interpretatif untuk klasifikasi.",
+    "steps": [
+      "Pilih target",
+      "Preprocess bila perlu",
+      "Masukkan Data ke Logistic Regression",
+      "Bandingkan metrik"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Preprocess",
+      "Logistic Regression",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "knn",
+    "name": "kNN",
+    "category": "Model",
+    "icon": "•••",
+    "level": "Menengah",
+    "summary": "Memprediksi berdasarkan kedekatan dengan tetangga terdekat.",
+    "purpose": "Menggunakan kedekatan antar observasi untuk klasifikasi atau regresi.",
+    "input": "Data",
+    "output": "Model",
+    "when_use": "Berguna untuk data yang representasinya bermakna berdasarkan jarak.",
+    "steps": [
+      "Normalisasi bila diperlukan",
+      "Tentukan jumlah tetangga",
+      "Latih dan evaluasi",
+      "Bandingkan dengan model lain"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Normalize",
+      "kNN",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "svm",
+    "name": "SVM",
+    "category": "Model",
+    "icon": "⌁",
+    "level": "Lanjutan",
+    "summary": "Model margin-based untuk klasifikasi dan regresi.",
+    "purpose": "Mencari pemisah yang efektif antar kelas atau fungsi regresi.",
+    "input": "Data",
+    "output": "Model",
+    "when_use": "Pertimbangkan ketika boundary kelas kompleks dan preprocessing sudah baik.",
+    "steps": [
+      "Siapkan fitur",
+      "Pilih kernel/parameter",
+      "Evaluasi pada Test & Score",
+      "Bandingkan performa"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Preprocess",
+      "SVM",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "neural-network",
+    "name": "Neural Network",
+    "category": "Model",
+    "icon": "◉",
+    "level": "Lanjutan",
+    "summary": "Model jaringan saraf untuk klasifikasi atau regresi.",
+    "purpose": "Mempelajari pola non-linear menggunakan jaringan neuron berlapis.",
+    "input": "Data",
+    "output": "Model",
+    "when_use": "Gunakan saat pola non-linear perlu dimodelkan dan fitur sudah dipersiapkan.",
+    "steps": [
+      "Siapkan data",
+      "Atur hidden layers",
+      "Evaluasi",
+      "Periksa generalisasi"
+    ],
+    "inputs": [
+      "Data",
+      "Preprocess"
+    ],
+    "outputs": [
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Preprocess",
+      "Neural Network",
+      "Test & Score"
+    ]
+  },
+  {
+    "slug": "test-and-score",
+    "name": "Test & Score",
+    "category": "Evaluate",
+    "icon": "✓",
+    "level": "Menengah",
+    "summary": "Membandingkan learner dengan metode evaluasi seperti cross-validation.",
+    "purpose": "Mengukur performa model menggunakan skema evaluasi yang dipilih.",
+    "input": "Data + Learners",
+    "output": "Scores / evaluation results",
+    "when_use": "Gunakan sebagai pusat evaluasi sebelum memilih model untuk interpretasi lebih lanjut.",
+    "steps": [
+      "Masukkan Data",
+      "Hubungkan beberapa learner",
+      "Pilih skema validasi",
+      "Bandingkan metrik"
+    ],
+    "inputs": [
+      "Data",
+      "Learners"
+    ],
+    "outputs": [
+      "Evaluation results"
+    ],
+    "flow": [
+      "File",
+      "Tree",
+      "Random Forest",
+      "Test & Score",
+      "Confusion Matrix"
+    ]
+  },
+  {
+    "slug": "predictions",
+    "name": "Predictions",
+    "category": "Evaluate",
+    "icon": "◎",
+    "level": "Menengah",
+    "summary": "Melihat prediksi model pada data.",
+    "purpose": "Memeriksa kelas prediksi dan probabilitas yang dihasilkan learner.",
+    "input": "Data + Learners",
+    "output": "Predicted data",
+    "when_use": "Gunakan setelah model siap dan Anda ingin melihat hasil prediksi per baris.",
+    "steps": [
+      "Hubungkan data",
+      "Hubungkan learner/model",
+      "Periksa kolom prediksi",
+      "Analisis kesalahan"
+    ],
+    "inputs": [
+      "Data",
+      "Model"
+    ],
+    "outputs": [
+      "Predictions"
+    ],
+    "flow": [
+      "File",
+      "Random Forest",
+      "Predictions",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "confusion-matrix",
+    "name": "Confusion Matrix",
+    "category": "Evaluate",
+    "icon": "▦",
+    "level": "Menengah",
+    "summary": "Memeriksa prediksi benar dan salah per kelas.",
+    "purpose": "Melihat pola salah klasifikasi melalui matriks kelas aktual vs prediksi.",
+    "input": "Evaluation results",
+    "output": "Selected instances / analysis",
+    "when_use": "Gunakan setelah Test & Score untuk mengetahui kelas mana yang paling sering tertukar.",
+    "steps": [
+      "Hubungkan dari Test & Score",
+      "Pilih learner",
+      "Baca diagonal sebagai prediksi benar",
+      "Investigasi sel di luar diagonal"
+    ],
+    "inputs": [
+      "Evaluation results"
+    ],
+    "outputs": [
+      "Selected instances"
+    ],
+    "flow": [
+      "Test & Score",
+      "Confusion Matrix",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "roc-analysis",
+    "name": "ROC Analysis",
+    "category": "Evaluate",
+    "icon": "⌁",
+    "level": "Lanjutan",
+    "summary": "Menganalisis performa klasifikasi di berbagai threshold.",
+    "purpose": "Membandingkan kemampuan model membedakan kelas menggunakan kurva ROC dan area di bawahnya.",
+    "input": "Evaluation results",
+    "output": "ROC visualization",
+    "when_use": "Gunakan ketika probabilitas/threshold penting dan Anda ingin membandingkan classifier.",
+    "steps": [
+      "Jalankan Test & Score",
+      "Kirim hasil ke ROC Analysis",
+      "Bandingkan kurva",
+      "Periksa AUC sebagai salah satu metrik"
+    ],
+    "inputs": [
+      "Evaluation results"
+    ],
+    "outputs": [
+      "ROC analysis"
+    ],
+    "flow": [
+      "File",
+      "Random Forest",
+      "Test & Score",
+      "ROC Analysis"
+    ]
+  },
+  {
+    "slug": "k-means",
+    "name": "k-Means",
+    "category": "Unsupervised",
+    "icon": "●",
+    "level": "Menengah",
+    "summary": "Mengelompokkan observasi berdasarkan kedekatan ke centroid.",
+    "purpose": "Membentuk sejumlah cluster tanpa target kelas.",
+    "input": "Data",
+    "output": "Data + cluster labels",
+    "when_use": "Gunakan untuk segmentasi atau eksplorasi kelompok yang belum diberi label.",
+    "steps": [
+      "Pilih fitur numerik yang relevan",
+      "Tentukan jumlah cluster",
+      "Jalankan k-Means",
+      "Visualisasikan hasil"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Clustered data",
+      "Model"
+    ],
+    "flow": [
+      "File",
+      "Normalize",
+      "k-Means",
+      "Scatter Plot"
+    ]
+  },
+  {
+    "slug": "hierarchical-clustering",
+    "name": "Hierarchical Clustering",
+    "category": "Unsupervised",
+    "icon": "⌘",
+    "level": "Menengah",
+    "summary": "Membangun struktur cluster bertingkat berdasarkan jarak.",
+    "purpose": "Memahami hubungan bertingkat antar observasi atau kelompok.",
+    "input": "Data / Distances",
+    "output": "Clustering structure",
+    "when_use": "Cocok untuk eksplorasi cluster dan melihat struktur kedekatan.",
+    "steps": [
+      "Siapkan data",
+      "Atur ukuran/jarak bila perlu",
+      "Bentuk hirarki",
+      "Pilih kelompok menarik untuk dianalisis"
+    ],
+    "inputs": [
+      "Data",
+      "Distances"
+    ],
+    "outputs": [
+      "Clusters"
+    ],
+    "flow": [
+      "File",
+      "Distances",
+      "Hierarchical Clustering",
+      "Data Table"
+    ]
+  },
+  {
+    "slug": "pca",
+    "name": "PCA",
+    "category": "Unsupervised",
+    "icon": "↘",
+    "level": "Lanjutan",
+    "summary": "Mereduksi dimensi dengan komponen utama.",
+    "purpose": "Meringkas variasi data berdimensi tinggi menjadi beberapa komponen utama.",
+    "input": "Data",
+    "output": "Transformed data / components",
+    "when_use": "Gunakan untuk eksplorasi, visualisasi, atau reduksi dimensi sebelum model tertentu.",
+    "steps": [
+      "Siapkan fitur numerik",
+      "Pertimbangkan normalisasi",
+      "Jalankan PCA",
+      "Interpretasikan komponen dan visualisasinya"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Components",
+      "Transformed data"
+    ],
+    "flow": [
+      "File",
+      "Normalize",
+      "PCA",
+      "Scatter Plot"
+    ]
+  },
+  {
+    "slug": "correlations",
+    "name": "Correlations",
+    "category": "Unsupervised",
+    "icon": "↔",
+    "level": "Menengah",
+    "summary": "Menganalisis hubungan antar variabel numerik.",
+    "purpose": "Melihat kekuatan hubungan antar pasangan variabel.",
+    "input": "Data",
+    "output": "Correlation matrix",
+    "when_use": "Gunakan saat eksplorasi untuk memahami hubungan antar fitur.",
+    "steps": [
+      "Masukkan data",
+      "Pilih variabel numerik",
+      "Tinjau matriks korelasi",
+      "Gunakan hasil untuk eksplorasi atau seleksi fitur"
+    ],
+    "inputs": [
+      "Data"
+    ],
+    "outputs": [
+      "Correlation matrix"
+    ],
+    "flow": [
+      "File",
+      "Correlations",
+      "Heat Map"
+    ]
+  },
+  {
+    "slug": "corpus",
+    "name": "Corpus",
+    "category": "Text Mining",
+    "icon": "Aa",
+    "level": "Menengah",
+    "summary": "Memuat dan menata kumpulan dokumen untuk text mining.",
+    "purpose": "Menjadi titik awal workflow analisis teks.",
+    "input": "Documents / text data",
+    "output": "Corpus",
+    "when_use": "Gunakan ketika analisis berpindah dari data tabular ke dokumen teks.",
+    "steps": [
+      "Impor dokumen",
+      "Buat corpus",
+      "Preprocess teks",
+      "Lanjutkan ke representasi atau model teks"
+    ],
+    "inputs": [
+      "Documents"
+    ],
+    "outputs": [
+      "Corpus"
+    ],
+    "flow": [
+      "Corpus",
+      "Preprocess Text",
+      "Word Cloud"
+    ]
+  },
+  {
+    "slug": "preprocess-text",
+    "name": "Preprocess Text",
+    "category": "Text Mining",
+    "icon": "✍",
+    "level": "Menengah",
+    "summary": "Membersihkan dan menyiapkan teks untuk analisis.",
+    "purpose": "Mengatur langkah seperti tokenisasi dan normalisasi teks sesuai kebutuhan.",
+    "input": "Corpus",
+    "output": "Processed corpus",
+    "when_use": "Gunakan sebelum analisis berbasis kata, dokumen, atau embedding.",
+    "steps": [
+      "Masukkan Corpus",
+      "Atur tahapan preprocessing",
+      "Periksa hasil tokenisasi",
+      "Teruskan ke analisis teks"
+    ],
+    "inputs": [
+      "Corpus"
+    ],
+    "outputs": [
+      "Processed corpus"
+    ],
+    "flow": [
+      "Corpus",
+      "Preprocess Text",
+      "Word Cloud"
+    ]
+  },
+  {
+    "slug": "word-cloud",
+    "name": "Word Cloud",
+    "category": "Text Mining",
+    "icon": "☁",
+    "level": "Dasar",
+    "summary": "Memvisualisasikan kata yang menonjol dalam corpus.",
+    "purpose": "Memberikan ringkasan visual terhadap kata yang sering atau menonjol.",
+    "input": "Corpus",
+    "output": "Text selection / visual",
+    "when_use": "Gunakan sebagai eksplorasi awal sebelum analisis sentimen atau topik.",
+    "steps": [
+      "Masukkan Corpus",
+      "Pilih atribut teks",
+      "Lihat kata menonjol",
+      "Kembali ke preprocessing bila hasil belum relevan"
+    ],
+    "inputs": [
+      "Corpus"
+    ],
+    "outputs": [
+      "Selected text"
+    ],
+    "flow": [
+      "Corpus",
+      "Preprocess Text",
+      "Word Cloud"
+    ]
+  },
+  {
+    "slug": "topic-modelling",
+    "name": "Topic Modelling",
+    "category": "Text Mining",
+    "icon": "#",
+    "level": "Lanjutan",
+    "summary": "Mengelompokkan pola topik dalam kumpulan dokumen.",
+    "purpose": "Menemukan struktur topik laten pada corpus.",
+    "input": "Corpus / bag of words",
+    "output": "Topics",
+    "when_use": "Gunakan ketika ingin menemukan tema utama tanpa memberi label topik secara manual.",
+    "steps": [
+      "Siapkan corpus",
+      "Lakukan preprocessing",
+      "Bangun representasi teks",
+      "Jalankan topic modelling",
+      "Interpretasikan topik"
+    ],
+    "inputs": [
+      "Corpus"
+    ],
+    "outputs": [
+      "Topics"
+    ],
+    "flow": [
+      "Corpus",
+      "Preprocess Text",
+      "Topic Modelling"
+    ]
+  }
+]

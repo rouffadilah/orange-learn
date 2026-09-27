@@ -11,6 +11,7 @@
         <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}"><span>🏠</span><span>Dashboard</span></a>
         <a href="/materi" class="nav-link {% if request.path.startswith('/materi') %}active{% endif %}"><span>📚</span><span>Materi</span></a>
         <a href="/widget" class="nav-link {% if request.path.startswith('/widget') %}active{% endif %}"><span>🧩</span><span>Widget</span></a>
+        <a href="/fitur" class="nav-link {% if request.path.startswith('/fitur') %}active{% endif %}"><span>🧭</span><span>Panduan Fitur</span></a>
         <div class="nav-label">Praktik & Analisis</div>
         <a href="/workflow" class="nav-link {% if request.path == '/workflow' %}active{% endif %}"><span>🛠️</span><span>Workflow</span></a>
         <a href="/workflow/builder" class="nav-link {% if request.path.startswith('/workflow/builder') %}active{% endif %}"><span>🧱</span><span>Workflow Builder</span></a>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Panduan fitur dan widget Orange Data Mining dengan visual workflow ala canvas.">
+<title>Panduan Fitur • orange-learn</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app">
+{% include "_sidebar.html" %}
+<main class="main">
+<header class="topbar"><div class="topbar-left"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Buka menu">☰</button><div><div class="eyebrow">Widget & Feature Guide</div><h1>Panduan Fitur Orange Data Mining</h1><p>Belajar fungsi widget dengan visual orisinal yang mengikuti struktur canvas, node, port, dan alur analisis Orange.</p></div></div></header>
+<section class="content feature-content">
+<div class="feature-hero"><div><span class="hero-badge">🧭 Visual Guide</span><h2>Pahami fitur Orange dari tampilan sampai workflow.</h2><p>Setiap fitur dijelaskan dengan tujuan, input-output, kapan digunakan, langkah penggunaan, dan mini-canvas yang menyerupai pola kerja visual Orange Data Mining.</p><div class="hero-actions"><a href="/widget" class="btn">Katalog Widget →</a><a href="/workflow/builder" class="btn btn-secondary">Buka Workflow Builder</a></div></div><div class="canvas-preview" aria-label="Ilustrasi workflow Orange"><div class="canvas-toolbar"><span>File</span><span>Data</span><span>Visualize</span><span>Model</span></div><div class="canvas-board"><div class="mini-node node-data"><b>File</b><small>Data</small><i></i></div><div class="mini-line line-one"></div><div class="mini-node node-table"><b>Data Table</b><small>Data</small><i></i><i class="left-port"></i></div><div class="mini-line line-two"></div><div class="mini-node node-visual"><b>Scatter Plot</b><small>Data</small><i class="left-port"></i><i></i></div><div class="canvas-caption">Ilustrasi orisinal • struktur visual mengikuti konsep widget + channel pada canvas Orange.</div></div></div></div>
+<div class="guide-note"><strong>Catatan visual</strong><span>Visual di halaman ini dibuat ulang secara orisinal untuk pembelajaran. Struktur utamanya mengikuti konsep resmi Orange: widget ditempatkan pada canvas dan saling bertukar data melalui koneksi.</span><a href="https://orangedatamining.com/widget-catalog/" target="_blank" rel="noopener">Lihat katalog resmi Orange →</a></div>
+<div class="section-head"><div><span class="eyebrow">Cari fitur</span><h2>Widget & fitur utama</h2></div><span class="analytics-badge">{{ features|length }} panduan</span></div>
+<form method="GET" action="/fitur" class="search-box feature-search"><input type="text" name="search" value="{{ search }}" placeholder="🔎 Cari File, Random Forest, PCA, Word Cloud..."><select name="kategori"><option value="">Semua kategori</option>{% for item in categories %}<option value="{{ item }}" {% if kategori == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select><button type="submit">Cari</button></form>
+<div class="category-chips"><a class="chip {% if not kategori %}active{% endif %}" href="/fitur">Semua</a>{% for item in categories %}<a class="chip {% if kategori == item %}active{% endif %}" href="/fitur?kategori={{ item|urlencode }}">{{ item }}</a>{% endfor %}</div>
+<div class="feature-grid">
+{% for feature in features %}
+<a class="feature-guide-card" href="/fitur/{{ feature['slug'] }}"><div class="feature-card-top"><div class="orange-widget-icon">{{ feature['icon'] }}</div><span class="feature-level">{{ feature['level'] }}</span></div><span class="feature-category">{{ feature['category'] }}</span><h3>{{ feature['name'] }}</h3><p>{{ feature['summary'] }}</p><div class="micro-flow">{% for node in feature['flow'] %}<span>{{ node }}</span>{% if not loop.last %}<b>→</b>{% endif %}{% endfor %}</div><div class="feature-io"><span><small>IN</small>{{ feature['input'] }}</span><span><small>OUT</small>{{ feature['output'] }}</span></div><div class="feature-link">Pelajari visual →</div></a>
+{% else %}<div class="empty"><div>🔎</div><h3>Fitur tidak ditemukan</h3><p>Coba kata pencarian atau kategori lain.</p></div>{% endfor %}
+</div>
+<div class="section-head feature-anatomy-head"><div><span class="eyebrow">Widget anatomy</span><h2>Bagaimana membaca sebuah widget?</h2></div></div>
+<div class="anatomy-grid"><div class="anatomy-mock"><div class="mock-toolbar"><span>🧩</span><strong>Random Forest</strong><em>Model</em></div><div class="mock-body"><div class="mock-panel"><label>Parameters</label><div class="mock-select">Number of trees <b>10</b></div><div class="mock-select">Max features <b>Auto</b></div><div class="mock-toggle"><i></i> Commit automatically</div></div><div class="mock-right"><div class="port-row left"><i></i><span>Data</span></div><div class="mock-result"><strong>Output</strong><p>Model ready</p><div class="result-chip">Learner</div><div class="result-chip">Model</div></div><div class="port-row right"><span>Model</span><i></i></div></div></div></div><div class="anatomy-list"><div><b>01</b><div><strong>Ikon & nama</strong><p>Menunjukkan fungsi widget pada canvas.</p></div></div><div><b>02</b><div><strong>Port input</strong><p>Data atau objek yang diterima widget dari node sebelumnya.</p></div></div><div><b>03</b><div><strong>Konfigurasi</strong><p>Parameter yang mengubah cara widget bekerja.</p></div></div><div><b>04</b><div><strong>Port output</strong><p>Hasil yang bisa diteruskan ke widget berikutnya.</p></div></div></div></div>
+</section>
+</main></div><script src="/js/app.js"></script></body></html>
