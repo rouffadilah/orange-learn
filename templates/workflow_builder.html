@@ -1337,16 +1337,29 @@
         showResult(lastVisual?'chart':'overview'); setStatus('Workflow selesai','ready');
     }
 
-    function buildSampleWorkflow() {
+    async function buildSampleWorkflow() {
         state.nodes=[]; state.connections=[]; state.nextId=1; state.selectedNodeId=null;
+        state.dataset=null; state.datasetName='';
+        datasetChip.textContent='Memuat dataset contoh…';
         const names=['File','Data Table','Select Columns','Distributions','Scatter Plot'];
         const created=[];
         names.forEach((name,i)=>{
             const button=widgetButtons.find(b=>b.dataset.name.toLowerCase()===name.toLowerCase() || b.dataset.name.toLowerCase().includes(name.toLowerCase()));
-            if (button) created.push(addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output},{x:70+i*285,y:130+(i%2)*120},{skipAutoConnect:true}));
+            if (button) created.push(addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output},{x:80+i*230,y:170+(i%2)*80},{skipAutoConnect:true}));
         });
         for(let i=0;i<created.length-1;i++) state.connections.push({id:'sample'+i,from:created[i].id,to:created[i+1].id});
-        renderNodes(); setStatus('Contoh EDA dibuat','ready');
+        renderNodes();
+        try {
+            setStatus('Memuat dataset contoh…','working');
+            const response=await fetch('/datasets/contoh_siswa.csv',{cache:'no-store'});
+            if(!response.ok) throw new Error('Dataset contoh tidak ditemukan.');
+            loadDataset('contoh_siswa.csv',parseCsv(await response.text()));
+            setStatus('Contoh EDA siap dianalisis','ready');
+            showResult('overview');
+        } catch(err) {
+            datasetChip.textContent='Dataset contoh gagal dimuat';
+            setStatus('Dataset contoh gagal dimuat','error');
+        }
     }
 
     function clearWorkflow() { state.nodes=[]; state.connections=[]; state.selectedNodeId=null; state.nextId=1; state.dataset=null; state.datasetName=''; datasetChip.textContent='Dataset belum dimuat'; renderNodes(); renderInspector(); document.getElementById('result-overview').innerHTML='<div class="result-empty"><span>📊</span><strong>Hasil workflow akan muncul di sini</strong><small>Unggah CSV melalui widget File lalu klik Jalankan.</small></div>'; setStatus('Canvas dibersihkan','ready'); }
