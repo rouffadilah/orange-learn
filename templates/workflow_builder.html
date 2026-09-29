@@ -446,9 +446,15 @@
         renderInspector();
     }
 
-    function selectNode(id) {
+    function selectNode(id, opts = {}) {
         state.selectedNodeId = id;
-        renderNodes();
+        if (opts.noRender) {
+            viewport.querySelectorAll('.orange-node').forEach(el => {
+                el.classList.toggle('selected', Number(el.dataset.id) === id);
+            });
+        } else {
+            renderNodes();
+        }
         renderInspector();
     }
 
@@ -484,7 +490,7 @@
     function bindNodeEvents(el, node) {
         el.addEventListener('mousedown', e => {
             if (e.target.closest('.orange-port,.orange-node-menu,.orange-node-label')) return;
-            selectNode(node.id);
+            selectNode(node.id, {noRender:true});
             beginDrag(e, el, node);
         });
         el.addEventListener('dblclick', () => {
