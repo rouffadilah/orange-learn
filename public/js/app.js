@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   overlay?.addEventListener('click',()=>setSidebar(false));
   document.querySelectorAll('.nav-link').forEach(link=>link.addEventListener('click',()=>setSidebar(false)));
 
-  const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+  const esc=value=>String(value??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','\"':'&quot;'}[c]));
   const download=(blob,filename)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
   const safeName=value=>String(value||'orange-learn-export').replace(/[^a-z0-9._-]+/gi,'-').replace(/^-+|-+$/g,'').slice(0,70)||'orange-learn-export';
 
@@ -86,6 +86,23 @@ document.addEventListener('DOMContentLoaded',()=>{
   enhanceAiExports();enhanceWorkflowExports();
 });
 
+/* File widget UX: double-click the File node to open the CSV picker.
+   This capture handler intentionally runs before the workflow page's own
+   bubble handler so the action is reliable even after canvas re-renders. */
+document.addEventListener('dblclick',event=>{
+  const node=event.target.closest?.('.orange-node');
+  if(!node) return;
+  const name=node.querySelector('.orange-node-main strong')?.textContent?.trim().toLowerCase();
+  if(name!=='file') return;
+  const input=document.getElementById('csvInput');
+  if(!input) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if(typeof event.stopImmediatePropagation==='function') event.stopImmediatePropagation();
+  input.value='';
+  input.click();
+},{capture:true});
+
 /* Google Sheets export fix: the Sheets values.update API expects
    valueInputOption as a query parameter, not inside the JSON body. */
 async function orangeLearnGoogleSheetsDirect(kind,content){
@@ -135,4 +152,4 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
 });
 
-function escGoogle(value){return String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
+function escGoogle(value){return String(value??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','\"':'&quot;'}[c]));}
