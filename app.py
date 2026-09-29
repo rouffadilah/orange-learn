@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, session
+from flask import Flask, render_template, request, jsonify, redirect, session, send_from_directory
 import json
 import os
 import re
@@ -473,6 +473,12 @@ def home():
         expert_ai=_valid_gemini_key(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
     )
 
+
+@app.route("/datasets/<path:filename>")
+def serve_dataset(filename):
+    """Serve bundled example datasets to the Workflow Builder."""
+    dataset_dir = BASE_DIR / "datasets"
+    return send_from_directory(dataset_dir, filename, as_attachment=False)
 
 @app.route("/workflow/builder")
 def workflow_builder():
