@@ -81,10 +81,44 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
-  const observer=new MutationObserver(()=>{enhanceAiExports();enhanceWorkflowExports();});
+  const observer=new MutationObserver(()=>{enhanceAiExports();enhanceWorkflowExports();upgradeOrangeIcons();});
   observer.observe(document.body,{childList:true,subtree:true});
-  enhanceAiExports();enhanceWorkflowExports();
+  enhanceAiExports();enhanceWorkflowExports();upgradeOrangeIcons();
 });
+
+function orangeIconSvg(name){
+  const n=String(name||'').toLowerCase();
+  const common='width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  if(n==='file') return `<svg ${common}><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4"/><path d="M8.5 12.5h7M8.5 16h7"/></svg>`;
+  if(n.includes('csv')) return `<svg ${common}><rect x="4" y="3.5" width="16" height="17" rx="1.5"/><path d="M4 8h16M9 8v12.5M15 8v12.5M4 13.5h16M4 17h16"/></svg>`;
+  if(n.includes('data table')) return `<svg ${common}><rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 9h17M3.5 14h17M9 4v16M15 4v16"/></svg>`;
+  if(n.includes('scatter')) return `<svg ${common}><path d="M4 20V4M4 20h16"/><circle cx="8" cy="15" r="1" fill="currentColor"/><circle cx="11" cy="10" r="1" fill="currentColor"/><circle cx="14" cy="13" r="1" fill="currentColor"/><circle cx="18" cy="7" r="1" fill="currentColor"/></svg>`;
+  if(n.includes('distribution')||n.includes('histogram')) return `<svg ${common}><path d="M4 20V4M4 20h17"/><path d="M7 20v-6h3v6M12 20V9h3v11M17 20V6h3v14"/></svg>`;
+  if(n.includes('box plot')) return `<svg ${common}><path d="M4 12h4M16 12h4M8 8h8v8H8zM12 5v3M12 16v3M10 12h4"/></svg>`;
+  if(n.includes('tree')) return `<svg ${common}><circle cx="12" cy="5" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="18" r="2.2"/><path d="M12 7.2v4.2M12 11.4H7v4.4M12 11.4h5v4.4"/></svg>`;
+  if(n.includes('random forest')) return `<svg ${common}><path d="M12 4l-3 5h2l-3 4h3l-4 5h10l-4-5h3l-3-4h2z"/></svg>`;
+  if(n.includes('pca')) return `<svg ${common}><path d="M5 19L19 5M7 7l12 12"/><circle cx="7" cy="7" r="1.4" fill="currentColor"/><circle cx="17" cy="17" r="1.4" fill="currentColor"/></svg>`;
+  if(n.includes('k-means')||n.includes('knn')) return `<svg ${common}><circle cx="7" cy="8" r="2"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="17" r="2"/><circle cx="17" cy="16" r="2"/><path d="M9 9.5l5 5M15 8.5l-4 6"/></svg>`;
+  if(n.includes('regression')||n.includes('svm')) return `<svg ${common}><path d="M4 19L20 5"/><circle cx="8" cy="15.5" r="1.6"/><circle cx="13" cy="11.5" r="1.6"/><circle cx="17" cy="8" r="1.6"/></svg>`;
+  if(n.includes('test & score')||n.includes('evaluation')) return `<svg ${common}><circle cx="12" cy="12" r="8.5"/><path d="M8 12l2.5 2.5L16 9"/></svg>`;
+  if(n.includes('confusion')) return `<svg ${common}><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M12 4v16M4 12h16"/></svg>`;
+  if(n.includes('select')||n.includes('transform')||n.includes('preprocess')||n.includes('normalize')) return `<svg ${common}><path d="M6 5h12M8 12h8M10 19h4"/></svg>`;
+  if(n.includes('distribution')||n.includes('visual')) return `<svg ${common}><path d="M4 20V4M4 20h17M7 17l4-6 3 3 4-8"/></svg>`;
+  return `<svg ${common}><circle cx="12" cy="12" r="8.5"/><path d="M8 12h8M12 8v8"/></svg>`;
+}
+
+function upgradeOrangeIcons(){
+  document.querySelectorAll('.orange-tool-item').forEach(btn=>{
+    const icon=btn.querySelector('.simple-tool-icon');
+    const name=btn.dataset.name||btn.querySelector('.orange-tool-copy strong')?.textContent||'';
+    if(icon){icon.innerHTML=orangeIconSvg(name);icon.classList.add('orange-svg-icon');}
+  });
+  document.querySelectorAll('.orange-node').forEach(node=>{
+    const icon=node.querySelector('.orange-node-icon');
+    const name=node.querySelector('.orange-node-main strong')?.textContent||'';
+    if(icon){icon.innerHTML=orangeIconSvg(name);icon.classList.add('orange-svg-icon');}
+  });
+}
 
 /* File widget UX: double-click the File node to open the CSV picker.
    This capture handler intentionally runs before the workflow page's own
@@ -153,3 +187,20 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 function escGoogle(value){return String(value??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','\"':'&quot;'}[c]));}
+
+/* Compact Orange-inspired widget icon styling. */
+const orangeIconStyle=document.createElement('style');
+orangeIconStyle.textContent=`
+.orange-svg-icon{width:34px!important;height:34px!important;min-width:34px!important;border-radius:8px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;background:#fff8e8!important;color:#b7791f!important;border:1px solid #efd39a!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.55)!important;font-size:0!important;flex:0 0 34px!important}
+.orange-svg-icon svg{width:21px;height:21px;display:block}
+.orange-tool-item{gap:10px!important;padding:9px 10px!important;min-height:58px!important}
+.orange-tool-item:hover .orange-svg-icon{background:#fff1d2!important;color:#d97706!important;border-color:#e9b949!important}
+.orange-tool-item .orange-tool-copy{min-width:0}
+.orange-tool-item .orange-tool-copy strong{font-size:13px!important;font-weight:700!important;line-height:1.2!important}
+.orange-tool-item .orange-tool-copy small{font-size:11px!important;color:#9ca3af!important;margin-top:2px!important}
+.orange-node-icon.orange-svg-icon{width:40px!important;height:40px!important;min-width:40px!important;border-radius:9px!important;background:#fff8e8!important;color:#a16207!important;border-color:#e8c66a!important}
+.orange-node-icon.orange-svg-icon svg{width:23px;height:23px}
+@media(max-width:900px){.orange-svg-icon{width:32px!important;height:32px!important;min-width:32px!important}.orange-node-icon.orange-svg-icon{width:36px!important;height:36px!important;min-width:36px!important}}
+`;
+document.head.appendChild(orangeIconStyle);
+upgradeOrangeIcons();
