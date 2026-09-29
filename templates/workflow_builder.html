@@ -1165,6 +1165,53 @@
     function loadWorkflow(data) { state.nodes=data.nodes||[]; state.connections=data.connections||[]; state.nextId=Math.max(0,...state.nodes.map(n=>n.id||0))+1; if(data.view){state.zoom=clampZoom(data.view.zoom??1);state.panX=Number(data.view.panX)||0;state.panY=Number(data.view.panY)||0;state.snap=data.view.snap!==false;state.grid=data.view.grid!==false;state.gridSize=Number(data.view.gridSize)||20;gridSizeSelect.value=String([14,20,28,36].includes(state.gridSize)?state.gridSize:20);} renderNodes(); renderInspector(); updateCanvasPreferences(); setStatus('Workflow dimuat','ready'); }
 
     widgetButtons.forEach(button=>button.addEventListener('click',()=>addWidget({name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output})));
+    widgetButtons.forEach(button=>{
+        button.draggable=true;
+        button.addEventListener('dragstart',e=>{
+            e.dataTransfer.effectAllowed='copy';
+            e.dataTransfer.setData('application/x-orange-widget',JSON.stringify({
+                name:button.dataset.name,category:button.dataset.category,input:button.dataset.input,output:button.dataset.output
+            }));
+            button.classList.add('dragging');
+        });
+        button.addEventListener('dragend',()=>button.classList.remove('dragging'));
+    });
+    canvas.addEventListener('dragover',e=>{
+        e.preventDefault();
+        e.dataTransfer.dropEffect='copy';
+        canvas.classList.add('toolbox-drop-ready');
+    });
+    canvas.addEventListener('dragleave',e=>{
+        if(!canvas.contains(e.relatedTarget)) canvas.classList.remove('toolbox-drop-ready');
+    });
+    canvas.addEventListener('drop',e=>{
+        e.preventDefault();
+        canvas.classList.remove('toolbox-drop-ready');
+        try{
+            const raw=e.dataTransfer.getData('application/x-orange-widget');
+            if(!raw)return;
+            const data=JSON.parse(raw);
+            const pt=clientToWorld(e.clientX,e.clientY);
+            const node=addWidget(data,{x:Math.max(20,pt.x-42),y:Math.max(20,pt.y-45)},{skipAutoConnect:true});
+            const targetEl=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('.orange-node');
+            const target=targetEl ? state.nodes.find(n=>n.id===Number(targetEl.dataset.id)) : null;
+            if(target && target.id!==node.id){
+                if(compatibleConnection(node,target)){
+                    state.connections.push({id:'c'+Date.now()+Math.random(),from:node.id,to:target.id});
+                    setStatus(`${node.name} → ${target.name} terhubung`,'ready');
+                }else if(compatibleConnection(target,node)){
+                    state.connections.push({id:'c'+Date.now()+Math.random(),from:target.id,to:node.id});
+                    setStatus(`${target.name} → ${node.name} terhubung`,'ready');
+                }else setStatus(`${node.name} ditambahkan — koneksi belum sesuai tipe`,'ready');
+            }else{
+                setStatus(`${node.name} ditambahkan ke canvas`,'ready');
+            }
+            renderNodes();
+            selectNode(node.id);
+        }catch(err){
+            setStatus('Widget gagal diseret ke canvas','error');
+        }
+    });
     document.querySelectorAll('.toolbox-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.toolbox-tab').forEach(t=>t.classList.toggle('active',t===tab));filterTools();}));
     document.getElementById('widgetSearch').addEventListener('input',filterTools);
     function filterTools(){const q=document.getElementById('widgetSearch').value.toLowerCase().trim();const cat=document.querySelector('.toolbox-tab.active').dataset.cat;widgetButtons.forEach(b=>{const okCat=cat==='all'||classifyCategory(b.dataset.name,b.dataset.category)===cat;const okQ=!q||(b.dataset.name+' '+b.dataset.category).toLowerCase().includes(q);b.style.display=okCat&&okQ?'flex':'none';});}
