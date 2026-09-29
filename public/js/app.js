@@ -136,9 +136,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   enhanceAiExports();enhanceWorkflowExports();
 });
 
-/* File widget UX: double-click the File node to open the CSV picker.
-   This capture handler intentionally runs before the workflow page's own
-   bubble handler so the action is reliable even after canvas re-renders. */
+/* File widget UX: double-click the File node to open the CSV picker. */
 document.addEventListener('dblclick',event=>{
   const node=event.target.closest?.('.orange-node');
   if(!node) return;
@@ -150,11 +148,15 @@ document.addEventListener('dblclick',event=>{
   event.stopPropagation();
   if(typeof event.stopImmediatePropagation==='function') event.stopImmediatePropagation();
   input.value='';
-  input.click();
+  try {
+    if(typeof input.showPicker==='function') input.showPicker();
+    else input.click();
+  } catch (_) {
+    input.click();
+  }
 },{capture:true});
 
-/* Google Sheets export fix: the Sheets values.update API expects
-   valueInputOption as a query parameter, not inside the JSON body. */
+/* Google Sheets export fix: the Sheets values.update API expects valueInputOption as a query parameter, not inside the JSON body. */
 async function orangeLearnGoogleSheetsDirect(kind,content){
   if(kind!=='sheets') return false;
   const token=await window.googleAccessToken();
@@ -162,24 +164,17 @@ async function orangeLearnGoogleSheetsDirect(kind,content){
   const lines=String(content||'').trim().split(/\n+/).filter(Boolean);
   const values=[['Bagian','Isi'],...lines.map((line,i)=>[String(i+1),line])];
   const createResponse=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-    body:JSON.stringify({properties:{title}})
+    method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({properties:{title}})
   });
   const created=await createResponse.json();
   if(!createResponse.ok) throw new Error(created?.error?.message||'Gagal membuat Google Sheets.');
   const spreadsheetId=created.spreadsheetId;
   const range=`Sheet1!A1:B${Math.max(values.length,1)}`;
   const updateUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheetId)+'/values/'+encodeURIComponent(range)+'?valueInputOption=USER_ENTERED';
-  const updateResponse=await fetch(updateUrl,{
-    method:'PUT',
-    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-    body:JSON.stringify({range,majorDimension:'ROWS',values})
-  });
+  const updateResponse=await fetch(updateUrl,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({range,majorDimension:'ROWS',values})});
   const updated=await updateResponse.json();
   if(!updateResponse.ok) throw new Error(updated?.error?.message||'Gagal mengisi data Google Sheets.');
-  const url='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(spreadsheetId)+'/edit';
-  window.open(url,'_blank','noopener');
+  window.open('https://docs.google.com/spreadsheets/d/'+encodeURIComponent(spreadsheetId)+'/edit','_blank','noopener');
   return true;
 }
 
@@ -188,9 +183,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const original=window.exportAiToGoogle;
   window.exportAiToGoogle=async function(kind,content){
     if(kind==='sheets'){
-      try{
-        await orangeLearnGoogleSheetsDirect(kind,content);
-      }catch(err){
+      try{await orangeLearnGoogleSheetsDirect(kind,content);}catch(err){
         const chatMessages=document.getElementById('chatMessages');
         const message=document.createElement('div');message.className='message bot';
         message.innerHTML='<div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong><div class="ai-rich-text"><p>Ekspor Google Sheets gagal: '+escGoogle(err?.message||err)+'</p></div></div>';
