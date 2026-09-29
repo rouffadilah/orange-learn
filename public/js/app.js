@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   function excelExport(title,headers,rows){
     headers=(headers||[]).map(String); rows=rows||[];
     if(!headers.length){headers=['Bagian','Isi'];rows=String(title||'').split(/\n+/).filter(Boolean).map((x,i)=>[i+1,x]);}
-    const cols=headers.map((_,i)=>String.fromCharCode(65+(i%26))).join('');
     const escXml=v=>esc(String(v??'')).replace(/\n/g,'&#10;');
     const headerRow=headers.map(h=>`<Cell ss:StyleID="Header"><Data ss:Type="String">${escXml(h)}</Data></Cell>`).join('');
     const body=rows.slice(0,10000).map(row=>`<Row>${headers.map((_,i)=>{const v=row?.[i]??'';const numeric=v!==''&&v!==null&&!Number.isNaN(Number(v))?'Number':'String';return `<Cell><Data ss:Type="${numeric}">${escXml(v)}</Data></Cell>`}).join('')}</Row>`).join('');
@@ -86,3 +85,54 @@ document.addEventListener('DOMContentLoaded',()=>{
   observer.observe(document.body,{childList:true,subtree:true});
   enhanceAiExports();enhanceWorkflowExports();
 });
+
+/* Google Sheets export fix: the Sheets values.update API expects
+   valueInputOption as a query parameter, not inside the JSON body. */
+async function orangeLearnGoogleSheetsDirect(kind,content){
+  if(kind!=='sheets') return false;
+  const token=await window.googleAccessToken();
+  const title='orange-learn • Catatan AI';
+  const lines=String(content||'').trim().split(/\n+/).filter(Boolean);
+  const values=[['Bagian','Isi'],...lines.map((line,i)=>[String(i+1),line])];
+  const createResponse=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({properties:{title}})
+  });
+  const created=await createResponse.json();
+  if(!createResponse.ok) throw new Error(created?.error?.message||'Gagal membuat Google Sheets.');
+  const spreadsheetId=created.spreadsheetId;
+  const range=`Sheet1!A1:B${Math.max(values.length,1)}`;
+  const updateUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheetId)+'/values/'+encodeURIComponent(range)+'?valueInputOption=USER_ENTERED';
+  const updateResponse=await fetch(updateUrl,{
+    method:'PUT',
+    headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({range,majorDimension:'ROWS',values})
+  });
+  const updated=await updateResponse.json();
+  if(!updateResponse.ok) throw new Error(updated?.error?.message||'Gagal mengisi data Google Sheets.');
+  const url='https://docs.google.com/spreadsheets/d/'+encodeURIComponent(spreadsheetId)+'/edit';
+  window.open(url,'_blank','noopener');
+  return true;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  if(typeof window.exportAiToGoogle!=='function') return;
+  const original=window.exportAiToGoogle;
+  window.exportAiToGoogle=async function(kind,content){
+    if(kind==='sheets'){
+      try{
+        await orangeLearnGoogleSheetsDirect(kind,content);
+      }catch(err){
+        const chatMessages=document.getElementById('chatMessages');
+        const message=document.createElement('div');message.className='message bot';
+        message.innerHTML='<div class="message-avatar">🤖</div><div class="message-content"><strong>orange-learn AI</strong><div class="ai-rich-text"><p>Ekspor Google Sheets gagal: '+escGoogle(err?.message||err)+'</p></div></div>';
+        chatMessages?.appendChild(message);
+      }
+      return;
+    }
+    return original(kind,content);
+  };
+});
+
+function escGoogle(value){return String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
