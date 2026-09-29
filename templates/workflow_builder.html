@@ -463,10 +463,12 @@
             el.style.left = node.x + 'px';
             el.style.top = node.y + 'px';
             el.innerHTML = `
+                <div class="orange-node-orbit" aria-hidden="true"></div>
                 ${portMarkup(node,'input',node.input)}
-                <div class="orange-node-topbar"><span class="orange-node-type">${escapeHtml(node.category)}</span><button class="orange-node-menu" data-menu="${node.id}" aria-label="Opsi">⋮</button></div>
-                <div class="orange-node-main"><div class="orange-node-icon">${orangeIconMarkup(node.name)}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.output)}</small></div></div>
-                <div class="orange-node-foot"><span>${node.name.toLowerCase()==='file' ? (state.datasetName ? 'Dataset loaded' : 'CSV input') : 'Data channel'}</span><button class="orange-node-remove" data-remove="${node.id}" aria-label="Hapus">×</button></div>
+                <div class="orange-node-core">
+                    <div class="orange-node-icon">${orangeIconMarkup(node.name)}</div>
+                    <div class="orange-node-label">${escapeHtml(node.name)}</div>
+                </div>
                 ${portMarkup(node,'output',node.output)}
             `;
             viewport.appendChild(el);
@@ -477,7 +479,7 @@
 
     function bindNodeEvents(el, node) {
         el.addEventListener('mousedown', e => {
-            if (e.target.closest('.orange-port,.orange-node-remove,.orange-node-menu')) return;
+            if (e.target.closest('.orange-port,.orange-node-menu,.orange-node-label')) return;
             selectNode(node.id);
             beginDrag(e, el, node);
         });
@@ -543,17 +545,55 @@
         connectionLayer.setAttribute('viewBox', `0 0 ${width} ${height}`);
         connectionLayer.setAttribute('width', width);
         connectionLayer.setAttribute('height', height);
+
+        const nodeCenter = (n) => ({
+            x: n.x + 42,
+            y: n.y + 42
+        });
+
         connectionLayer.innerHTML = state.connections.map(conn => {
             const from = state.nodes.find(n => n.id === conn.from);
             const to = state.nodes.find(n => n.id === conn.to);
             if (!from || !to) return '';
-            const x1 = from.x + 208;
-            const y1 = from.y + 62;
-            const x2 = to.x;
-            const y2 = to.y + 62;
-            const dx = Math.max(55, Math.abs(x2-x1)*0.45);
+            const a = nodeCenter(from);
+            const b = nodeCenter(to);
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = Math.max(80, Math.hypot(dx, dy));
+            const horizontal = Math.abs(dx) >= Math.abs(dy);
+
+            let x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
+            if (horizontal) {
+                const dir = dx >= 0 ? 1 : -1;
+                x1 += dir * 42;
+                x2 -= dir * 42;
+            } else {
+                const dir = dy >= 0 ? 1 : -1;
+                y1 += dir * 42;
+                y2 -= dir * 42;
+            }
+
+            const bend = Math.min(180, Math.max(48, distance * 0.35));
+            let c1x=x1, c1y=y1, c2x=x2, c2y=y2;
+            if (horizontal) {
+                const dir = dx >= 0 ? 1 : -1;
+                c1x = x1 + bend * dir;
+                c2x = x2 - bend * dir;
+            } else {
+                const dir = dy >= 0 ? 1 : -1;
+                c1y = y1 + bend * dir;
+                c2y = y2 - bend * dir;
+            }
+
             const selected = state.selectedNodeId === from.id || state.selectedNodeId === to.id ? ' selected' : '';
-            return `<path class="orange-connection${selected}" d="M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}" />`;
+            const label = from.output && from.output !== '—' ? from.output : 'Data';
+            const labelX = (x1 + 3*c1x + 3*c2x + x2) / 8;
+            const labelY = (y1 + 3*c1y + 3*c2y + y2) / 8 - 8;
+
+            return `
+              <path class="orange-connection${selected}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" />
+              <text class="orange-connection-label" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(label)}</text>
+            `;
         }).join('');
     }
 
@@ -603,10 +643,10 @@
         const pad = 80;
         const minX = Math.min(...state.nodes.map(n => n.x));
         const minY = Math.min(...state.nodes.map(n => n.y));
-        const maxX = Math.max(...state.nodes.map(n => n.x + 208));
-        const maxY = Math.max(...state.nodes.map(n => n.y + 124));
-        const contentW = Math.max(208, maxX - minX);
-        const contentH = Math.max(124, maxY - minY);
+        const maxX = Math.max(...state.nodes.map(n => n.x + 84));
+        const maxY = Math.max(...state.nodes.map(n => n.y + 90));
+        const contentW = Math.max(84, maxX - minX);
+        const contentH = Math.max(90, maxY - minY);
         state.zoom = clampZoom(Math.min((canvasRect.width-pad*2)/contentW, (canvasRect.height-pad*2)/contentH));
         state.panX = Math.round((canvasRect.width - contentW * state.zoom) / 2 - minX * state.zoom);
         state.panY = Math.round((canvasRect.height - contentH * state.zoom) / 2 - minY * state.zoom);
