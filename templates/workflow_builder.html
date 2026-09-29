@@ -87,6 +87,14 @@
                         <span class="canvas-hud-chip" id="workspaceModeChip">Pan: drag area kosong</span>
                         <span class="canvas-hud-chip" id="snapChip">Snap ON</span>
                     </div>
+                    <div class="connection-recommendations" id="connectionRecommendations" hidden>
+                        <div class="connection-rec-head">
+                            <div><strong>Rekomendasi berikutnya</strong><small id="connectionRecHint">Hubungkan output ke widget yang sesuai.</small></div>
+                            <button type="button" id="connectionRecClose" aria-label="Batalkan koneksi">×</button>
+                        </div>
+                        <div class="connection-rec-items" id="connectionRecItems"></div>
+                    </div>
+
                     <div class="orange-canvas-world" id="canvasWorld">
                         <div class="orange-canvas-grid" id="canvasGrid"></div>
                         <svg class="orange-connections" id="connectionLayer" aria-hidden="true"></svg>
@@ -333,6 +341,8 @@
         nextId: 1,
         selectedNodeId: null,
         connectingFrom: null,
+        connectionDrag: null,
+        pendingRecommendationSource: null,
         zoom: 1,
         panX: 0,
         panY: 0,
@@ -385,7 +395,7 @@
         if (key.includes('knn')) return {icon:orangeIconUrl('kNN'), color:'model', inputs:['Data'], outputs:['Model']};
         if (key.includes('svm')) return {icon:orangeIconUrl('SVM'), color:'model', inputs:['Data'], outputs:['Model']};
         if (key.includes('regression')) return {icon:orangeIconUrl('Logistic Regression'), color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('test & score')) return {icon:orangeIconUrl('Test and Score'), color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
+        if (key.includes('test & score')) return {icon:orangeIconUrl('Test & Score'), color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
         if (key.includes('confusion matrix')) return {icon:orangeIconUrl('Confusion Matrix'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
         if (key.includes('roc')) return {icon:orangeIconUrl('ROC Analysis'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
         return {icon:'🧩', color:'data', inputs:['Data'], outputs:['Data']};
@@ -422,13 +432,6 @@
         state.nodes.push(node);
         renderNodes();
         selectNode(node.id);
-        if (!opts.skipAutoConnect && state.nodes.length > 1) {
-            const previous = state.nodes[state.nodes.length - 2];
-            if (!state.connections.some(c => c.from === previous.id && c.to === node.id)) {
-                state.connections.push({id:'c'+Date.now()+Math.random(), from:previous.id, to:node.id});
-                renderConnections();
-            }
-        }
         setStatus(`${node.name} ditambahkan`, 'ready');
         return node;
     }
@@ -437,6 +440,7 @@
         state.nodes = state.nodes.filter(n => n.id !== id);
         state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
         if (state.selectedNodeId === id) state.selectedNodeId = null;
+        if (state.connectionDrag?.fromId === id) cancelConnectionDrag(false);
         renderNodes();
         renderConnections();
         renderInspector();
@@ -487,27 +491,19 @@
             selectNode(node.id);
             if (node.name.toLowerCase() === 'file') orangeFileDialogOpen();
         });
+
         el.querySelectorAll('.orange-port').forEach(port => {
-            port.addEventListener('click', e => {
+            port.addEventListener('pointerdown', e => {
+                if (port.dataset.side !== 'output') return;
+                e.preventDefault();
                 e.stopPropagation();
-                const side = port.dataset.side;
-                if (side === 'output') {
-                    state.connectingFrom = Number(port.dataset.node);
-                    setStatus('Pilih port input widget tujuan', 'working');
-                    renderNodes();
-                    return;
-                }
-                if (side === 'input' && state.connectingFrom) {
-                    const to = Number(port.dataset.node);
-                    if (to !== state.connectingFrom) {
-                        const exists = state.connections.some(c => c.from === state.connectingFrom && c.to === to);
-                        if (!exists) state.connections.push({id:'c'+Date.now()+Math.random(), from:state.connectingFrom, to});
-                    }
-                    state.connectingFrom = null;
-                    setStatus('Koneksi dibuat', 'ready');
-                    renderNodes();
-                    renderConnections();
-                }
+                startConnectionDrag(Number(port.dataset.node), e.clientX, e.clientY);
+            });
+            port.addEventListener('pointerup', e => {
+                if (port.dataset.side !== 'input' || !state.connectionDrag) return;
+                e.preventDefault();
+                e.stopPropagation();
+                finishConnectionDrag(e.clientX,e.clientY);
             });
         });
         el.querySelector('[data-remove]')?.addEventListener('click', e => { e.stopPropagation(); removeNode(Number(e.currentTarget.dataset.remove)); });
@@ -539,6 +535,192 @@
         window.addEventListener('mouseup', up);
     }
 
+    function clientToWorld(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left - state.panX) / state.zoom,
+            y: (clientY - rect.top - state.panY) / state.zoom
+        };
+    }
+
+    function connectionPoint(node, side='output') {
+        return {
+            x: node.x + (side === 'output' ? 84 : 0),
+            y: node.y + 38
+        };
+    }
+
+    function connectionType(output) {
+        const value = String(output || '').toLowerCase();
+        if (value.includes('evaluation')) return 'evaluation';
+        if (value.includes('model')) return 'model';
+        if (value.includes('selection')) return 'selection';
+        if (value.includes('data')) return 'data';
+        return 'data';
+    }
+
+    function compatibleConnection(from, to) {
+        if (!from || !to || from.id === to.id) return false;
+        const outType = connectionType(from.output);
+        const input = String(to.input || '').toLowerCase();
+        if (input.includes('—') || input.includes('none')) return false;
+        if (outType === 'model') return input.includes('model') || /test\s*&\s*score|predictions/i.test(to.name);
+        if (outType === 'evaluation') return input.includes('evaluation') || /confusion matrix|roc/i.test(to.name);
+        return input.includes('data') || input.includes('dataset');
+    }
+
+    function recommendedWidgetNames(from) {
+        const type = connectionType(from?.output);
+        const candidates = {
+            data: ['Data Table','Select Columns','Preprocess','Distributions','Scatter Plot','Box Plot','Data Sampler'],
+            selection: ['Data Table','Distributions','Scatter Plot','Box Plot'],
+            model: ['Test & Score','Predictions'],
+            evaluation: ['Confusion Matrix','ROC Analysis']
+        }[type] || ['Data Table'];
+        return candidates.filter(name => widgetButtons.some(b => b.dataset.name.toLowerCase() === name.toLowerCase()));
+    }
+
+    function findWidgetButton(name) {
+        return widgetButtons.find(b => b.dataset.name.toLowerCase() === String(name).toLowerCase()) || null;
+    }
+
+    function connectorPath(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const horizontal = Math.abs(dx) >= Math.abs(dy) * 0.7;
+        const distance = Math.max(70, Math.hypot(dx, dy));
+        const bend = Math.min(190, Math.max(55, distance * 0.34));
+        let c1x=a.x, c1y=a.y, c2x=b.x, c2y=b.y;
+        if (horizontal) {
+            const dir = dx >= 0 ? 1 : -1;
+            c1x = a.x + bend * dir;
+            c2x = b.x - bend * dir;
+        } else {
+            const dir = dy >= 0 ? 1 : -1;
+            c1y = a.y + bend * dir;
+            c2y = b.y - bend * dir;
+        }
+        const mx = (a.x + 3*c1x + 3*c2x + b.x) / 8;
+        const my = (a.y + 3*c1y + 3*c2y + b.y) / 8;
+        return {d:`M ${a.x} ${a.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${b.x} ${b.y}`,labelX:mx,labelY:my};
+    }
+
+    function clearConnectionHighlights() {
+        viewport.querySelectorAll('.orange-node').forEach(el => el.classList.remove('connection-recommended','connection-drop-target','connection-invalid'));
+    }
+
+    function updateConnectionHighlights(clientX=null, clientY=null) {
+        clearConnectionHighlights();
+        const drag = state.connectionDrag;
+        if (!drag) return;
+        const from = state.nodes.find(n => n.id === drag.fromId);
+        if (!from) return;
+        const targetEl = clientX !== null && clientY !== null ? document.elementFromPoint(clientX,clientY)?.closest('.orange-port.input,.orange-node') : null;
+        let hoveredNode = targetEl?.closest?.('.orange-node');
+        if (targetEl?.classList?.contains('orange-node')) hoveredNode=targetEl;
+        if (hoveredNode) {
+            const target = state.nodes.find(n => n.id === Number(hoveredNode.dataset.id));
+            if (target) hoveredNode.classList.add(compatibleConnection(from,target) ? 'connection-drop-target' : 'connection-invalid');
+        }
+        state.nodes.forEach(node => {
+            const el=viewport.querySelector(`.orange-node[data-id="${node.id}"]`);
+            if (!el || node.id===from.id) return;
+            if (compatibleConnection(from,node)) el.classList.add('connection-recommended');
+        });
+    }
+
+    function positionRecommendationPanel(clientX, clientY) {
+        const panel=document.getElementById('connectionRecommendations');
+        const rect=canvas.getBoundingClientRect();
+        const x=Math.min(Math.max(12,clientX-rect.left+14),Math.max(12,rect.width-292));
+        const y=Math.min(Math.max(12,clientY-rect.top+14),Math.max(12,rect.height-150));
+        panel.style.left=x+'px';
+        panel.style.top=y+'px';
+    }
+
+    function hideConnectionRecommendations() {
+        const panel=document.getElementById('connectionRecommendations');
+        panel.hidden=true;
+        state.pendingRecommendationSource=null;
+        document.getElementById('connectionRecItems').innerHTML='';
+    }
+
+    function showConnectionRecommendations(sourceId, clientX, clientY) {
+        const from=state.nodes.find(n=>n.id===sourceId);
+        if(!from) return;
+        const names=recommendedWidgetNames(from);
+        const panel=document.getElementById('connectionRecommendations');
+        const items=document.getElementById('connectionRecItems');
+        const hint=document.getElementById('connectionRecHint');
+        if(!names.length){hideConnectionRecommendations();return;}
+        state.pendingRecommendationSource=sourceId;
+        hint.textContent=`Output ${from.output || 'Data'} → pilih widget lanjutan atau lepaskan pada port input.`;
+        items.innerHTML=names.slice(0,5).map(name=>{
+            const button=findWidgetButton(name);
+            const category=button?.dataset.category || '';
+            const icon=orangeIconUrl(name);
+            return `<button type="button" class="connection-rec-item" data-rec-widget="${escapeHtml(name)}"><img src="${icon}" alt="" aria-hidden="true"><span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(category)}</small></span><span class="connection-rec-arrow">→</span></button>`;
+        }).join('');
+        items.querySelectorAll('[data-rec-widget]').forEach(btn=>btn.addEventListener('click',()=>{
+            const sourceId=state.pendingRecommendationSource;
+            const tool=findWidgetButton(btn.dataset.recWidget);
+            const source=state.nodes.find(n=>n.id===sourceId);
+            if(!source||!tool)return;
+            const pt=state.connectionDrag?.currentClient ? clientToWorld(...state.connectionDrag.currentClient) : clientToWorld(clientX,clientY);
+            const node=addWidget({name:tool.dataset.name,category:tool.dataset.category,input:tool.dataset.input,output:tool.dataset.output},
+                {x:Math.max(20,pt.x-42),y:Math.max(20,pt.y-45)},{skipAutoConnect:true});
+            if(compatibleConnection(source,node)){
+                state.connections.push({id:'c'+Date.now()+Math.random(),from:source.id,to:node.id});
+            }
+            hideConnectionRecommendations();
+            clearConnectionHighlights();
+            renderNodes();
+            selectNode(node.id);
+            setStatus(`${node.name} ditambahkan dan dihubungkan`,'ready');
+        }));
+        panel.hidden=false;
+        positionRecommendationPanel(clientX,clientY);
+    }
+
+    function startConnectionDrag(nodeId, clientX, clientY) {
+        const from=state.nodes.find(n=>n.id===nodeId);
+        if(!from) return;
+        state.connectionDrag={fromId:nodeId,startClient:[clientX,clientY],currentClient:[clientX,clientY]};
+        state.connectingFrom=nodeId;
+        hideConnectionRecommendations();
+        showConnectionRecommendations(nodeId,clientX,clientY);
+        updateConnectionHighlights(clientX,clientY);
+        renderConnections();
+        setStatus('Tarik ke port input widget tujuan','working');
+    }
+
+    function cancelConnectionDrag(showStatus=true) {
+        state.connectionDrag=null;
+        state.connectingFrom=null;
+        clearConnectionHighlights();
+        hideConnectionRecommendations();
+        renderConnections();
+        if(showStatus) setStatus('Siap','ready');
+    }
+
+    function finishConnectionDrag(clientX, clientY) {
+        const drag=state.connectionDrag;
+        if(!drag) return;
+        const from=state.nodes.find(n=>n.id===drag.fromId);
+        const raw=document.elementFromPoint(clientX,clientY);
+        const port=raw?.closest?.('.orange-port.input');
+        const target=port ? state.nodes.find(n=>n.id===Number(port.dataset.node)) : null;
+        if(from && target && compatibleConnection(from,target)){
+            if(!state.connections.some(c=>c.from===from.id&&c.to===target.id)){
+                state.connections.push({id:'c'+Date.now()+Math.random(),from:from.id,to:target.id});
+            }
+            state.connectionDrag=null;state.connectingFrom=null;clearConnectionHighlights();hideConnectionRecommendations();renderNodes();selectNode(target.id);setStatus(`Koneksi ${from.name} → ${target.name} dibuat`,'ready');return;
+        }
+        state.connectionDrag=null;state.connectingFrom=null;clearConnectionHighlights();renderConnections();
+        showConnectionRecommendations(from?.id,clientX,clientY);
+        setStatus(from?'Pilih salah satu rekomendasi berikutnya':'Siap','ready');
+    }
+
     function renderConnections() {
         const width = world?.offsetWidth || 2600;
         const height = world?.offsetHeight || 1800;
@@ -546,55 +728,25 @@
         connectionLayer.setAttribute('width', width);
         connectionLayer.setAttribute('height', height);
 
-        const nodeCenter = (n) => ({
-            x: n.x + 42,
-            y: n.y + 42
+        const paths=[];
+        state.connections.forEach(conn => {
+            const from=state.nodes.find(n=>n.id===conn.from);
+            const to=state.nodes.find(n=>n.id===conn.to);
+            if(!from||!to)return;
+            const curve=connectorPath(connectionPoint(from,'output'),connectionPoint(to,'input'));
+            const selected=state.selectedNodeId===from.id||state.selectedNodeId===to.id?' selected':'';
+            const label=from.output&&from.output!=='—'?from.output:'Data';
+            paths.push(`<path class="orange-connection${selected}" d="${curve.d}"/><text class="orange-connection-label" x="${curve.labelX}" y="${curve.labelY-8}" text-anchor="middle">${escapeHtml(label)}</text>`);
         });
-
-        connectionLayer.innerHTML = state.connections.map(conn => {
-            const from = state.nodes.find(n => n.id === conn.from);
-            const to = state.nodes.find(n => n.id === conn.to);
-            if (!from || !to) return '';
-            const a = nodeCenter(from);
-            const b = nodeCenter(to);
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const distance = Math.max(80, Math.hypot(dx, dy));
-            const horizontal = Math.abs(dx) >= Math.abs(dy);
-
-            let x1 = a.x, y1 = a.y, x2 = b.x, y2 = b.y;
-            if (horizontal) {
-                const dir = dx >= 0 ? 1 : -1;
-                x1 += dir * 42;
-                x2 -= dir * 42;
-            } else {
-                const dir = dy >= 0 ? 1 : -1;
-                y1 += dir * 42;
-                y2 -= dir * 42;
+        if(state.connectionDrag){
+            const from=state.nodes.find(n=>n.id===state.connectionDrag.fromId);
+            if(from){
+                const pt=clientToWorld(...state.connectionDrag.currentClient);
+                const curve=connectorPath(connectionPoint(from,'output'),pt);
+                paths.push(`<path class="orange-connection preview" d="${curve.d}"/>`);
             }
-
-            const bend = Math.min(180, Math.max(48, distance * 0.35));
-            let c1x=x1, c1y=y1, c2x=x2, c2y=y2;
-            if (horizontal) {
-                const dir = dx >= 0 ? 1 : -1;
-                c1x = x1 + bend * dir;
-                c2x = x2 - bend * dir;
-            } else {
-                const dir = dy >= 0 ? 1 : -1;
-                c1y = y1 + bend * dir;
-                c2y = y2 - bend * dir;
-            }
-
-            const selected = state.selectedNodeId === from.id || state.selectedNodeId === to.id ? ' selected' : '';
-            const label = from.output && from.output !== '—' ? from.output : 'Data';
-            const labelX = (x1 + 3*c1x + 3*c2x + x2) / 8;
-            const labelY = (y1 + 3*c1y + 3*c2y + y2) / 8 - 8;
-
-            return `
-              <path class="orange-connection${selected}" d="M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}" />
-              <text class="orange-connection-label" x="${labelX}" y="${labelY}" text-anchor="middle">${escapeHtml(label)}</text>
-            `;
-        }).join('');
+        }
+        connectionLayer.innerHTML=paths.join('');
     }
 
     function applyCanvasView(persist=true) {
@@ -1045,6 +1197,21 @@
     document.getElementById('toggleToolboxBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('toolbox-collapsed');});
     document.getElementById('toggleInspectorBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('inspector-collapsed');});
 
+    window.addEventListener('pointermove',e=>{
+        if(!state.connectionDrag)return;
+        state.connectionDrag.currentClient=[e.clientX,e.clientY];
+        updateConnectionHighlights(e.clientX,e.clientY);
+        positionRecommendationPanel(e.clientX,e.clientY);
+        renderConnections();
+    });
+    window.addEventListener('pointerup',e=>{
+        if(!state.connectionDrag)return;
+        finishConnectionDrag(e.clientX,e.clientY);
+    });
+    window.addEventListener('pointercancel',()=>{if(state.connectionDrag)cancelConnectionDrag();});
+
+    document.getElementById('connectionRecClose')?.addEventListener('click',()=>cancelConnectionDrag());
+    
     let spacePressed=false;
     let panPointer=null;
     window.addEventListener('keydown',e=>{
@@ -1056,7 +1223,7 @@
         else if(e.key==='1'){resetView();}
         else if(e.key.toLowerCase()==='g'){state.grid=!state.grid;updateCanvasPreferences();}
         else if(e.key.toLowerCase()==='s'){state.snap=!state.snap;updateCanvasPreferences();}
-        else if(e.key==='Escape'){state.connectingFrom=null;panPointer=null;setStatus('Siap','ready');}
+        else if(e.key==='Escape'){if(state.connectionDrag)cancelConnectionDrag();else{state.connectingFrom=null;panPointer=null;hideConnectionRecommendations();setStatus('Siap','ready');}}
         else if(e.key==='Delete' && state.selectedNodeId!==null){removeNode(state.selectedNodeId);setStatus('Widget dihapus','ready');}
     });
     window.addEventListener('keyup',e=>{if(e.code==='Space'){spacePressed=false;workspaceModeChip.textContent='Pan: drag area kosong';}});
@@ -1083,7 +1250,7 @@
     canvas.addEventListener('pointerup',endPan); canvas.addEventListener('pointercancel',endPan);
 
     canvas.addEventListener('click',e=>{
-        if(e.target===canvas||e.target.id==='canvasGrid'||e.target===world){state.selectedNodeId=null;state.connectingFrom=null;renderNodes();renderInspector();setStatus('Siap','ready');}
+        if(e.target===canvas||e.target.id==='canvasGrid'||e.target===world){state.selectedNodeId=null;if(state.connectionDrag)cancelConnectionDrag();else{state.connectingFrom=null;hideConnectionRecommendations();}renderNodes();renderInspector();setStatus('Siap','ready');}
     });
     document.addEventListener('click',e=>{if(!customizePopover.hidden && !customizePopover.contains(e.target) && e.target.id!=='canvasCustomizeBtn')togglePopover(false);});
     window.addEventListener('resize',()=>{renderConnections();});
