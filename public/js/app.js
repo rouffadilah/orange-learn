@@ -81,6 +81,56 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
+  /* Keep toolbox thumbnails identical to the icon used by the corresponding canvas node. */
+  function workflowWidgetIcon(name){
+    const key=String(name||'').toLowerCase();
+    if(key==='file'||key.includes('csv file')) return '📁';
+    if(key.includes('data table')) return '▦';
+    if(key.includes('select columns')) return '◫';
+    if(key.includes('sampler')) return '◌';
+    if(key.includes('preprocess')||key.includes('impute')||key.includes('normalize')) return '🧹';
+    if(key.includes('distribution')||key.includes('histogram')) return '▥';
+    if(key.includes('scatter')) return '⌁';
+    if(key.includes('box plot')) return '▤';
+    if(key.includes('heat map')) return '▦';
+    if(key.includes('random forest')) return '🌲';
+    if(key.includes('tree')) return '🌳';
+    if(key.includes('knn')) return '◉';
+    if(key.includes('svm')) return '◎';
+    if(key.includes('regression')) return '╱';
+    if(key.includes('test & score')) return '✓';
+    if(key.includes('confusion matrix')) return '▦';
+    if(key.includes('roc')) return '⌁';
+    return '🧩';
+  }
+
+  function syncWorkflowToolboxIcons(){
+    const builder=document.querySelector('.orange-builder-shell');
+    if(!builder)return;
+    builder.querySelectorAll('.orange-tool-item').forEach(item=>{
+      const icon=item.querySelector('.orange-tool-icon');
+      if(icon) icon.textContent=workflowWidgetIcon(item.dataset.name||item.querySelector('.orange-tool-copy strong')?.textContent||'');
+    });
+  }
+
+  function injectWorkflowIconStyles(){
+    if(document.getElementById('orangeLearnWorkflowIconStyles'))return;
+    const style=document.createElement('style');
+    style.id='orangeLearnWorkflowIconStyles';
+    style.textContent=`
+      .orange-builder-shell .orange-tool-item{align-items:center}
+      .orange-builder-shell .orange-tool-icon{width:40px;height:40px;min-width:40px;display:grid;place-items:center;border-radius:10px;background:#f7f8fa;border:1px solid #e5e7eb;box-shadow:none;font-size:21px;line-height:1;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}
+      .orange-builder-shell .orange-tool-copy{min-width:0}
+      .orange-builder-shell .orange-tool-copy strong{line-height:1.15}
+      .orange-builder-shell .orange-tool-add{margin-left:auto}
+      .orange-builder-shell .orange-node-icon{font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}
+    `;
+    document.head.appendChild(style);
+  }
+
+  syncWorkflowToolboxIcons();
+  injectWorkflowIconStyles();
+
   const observer=new MutationObserver(()=>{enhanceAiExports();enhanceWorkflowExports();});
   observer.observe(document.body,{childList:true,subtree:true});
   enhanceAiExports();enhanceWorkflowExports();
