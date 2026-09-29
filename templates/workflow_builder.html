@@ -75,7 +75,7 @@
                         </div>
                         <button class="canvas-action" id="canvasCustomizeBtn" title="Kustomisasi area kerja">⚙ Canvas</button>
                         <button class="canvas-action" id="toggleToolboxBtn" title="Tampilkan/sembunyikan toolbox">◧ Toolbox</button>
-                        <button class="canvas-action" id="toggleInspectorBtn" title="Tampilkan/sembunyikan inspector">◨ Inspector</button>
+
                         <button class="canvas-action" id="clearBtn">🗑</button>
                         <button class="canvas-action" id="validateBtn">✓ Cek</button>
                         <button class="canvas-action primary" id="runBtn">▶ Jalankan</button>
@@ -149,22 +149,7 @@
                 </div>
             </section>
 
-            <aside class="orange-inspector-panel">
-                <div class="orange-panel-heading">
-                    <div>
-                        <span class="eyebrow">INSPECTOR</span>
-                        <h2 id="inspectorTitle">Canvas</h2>
-                    </div>
-                    <span class="inspector-pill" id="inspectorPill">—</span>
-                </div>
-                <div id="inspectorBody" class="inspector-body">
-                    <div class="inspector-empty">
-                        <div class="inspector-icon">🛠</div>
-                        <strong>Pilih widget</strong>
-                        <p>Atur parameter widget di panel ini. Klik node File untuk memilih dataset CSV.</p>
-                    </div>
-                </div>
-            </aside>
+
         </section>
     </main>
 </div>
@@ -230,9 +215,29 @@
     const viewport = document.getElementById('canvasViewport');
     const connectionLayer = document.getElementById('connectionLayer');
     const canvasEmpty = document.getElementById('canvasEmpty');
-    const inspectorBody = document.getElementById('inspectorBody');
-    const inspectorTitle = document.getElementById('inspectorTitle');
-    const inspectorPill = document.getElementById('inspectorPill');
+    const inspectorBody = null;
+    const inspectorTitle = null;
+    const inspectorPill = null;
+    const orangeScatterModal = document.getElementById('orangeScatterModal');
+    const orangeScatterClose = document.getElementById('orangeScatterClose');
+    const oscAxisX = document.getElementById('oscAxisX');
+    const oscAxisY = document.getElementById('oscAxisY');
+    const oscColor = document.getElementById('oscColor');
+    const oscShape = document.getElementById('oscShape');
+    const oscSize = document.getElementById('oscSize');
+    const oscLabel = document.getElementById('oscLabel');
+    const oscSymbolSize = document.getElementById('oscSymbolSize');
+    const oscOpacity = document.getElementById('oscOpacity');
+    const oscJitter = document.getElementById('oscJitter');
+    const oscLegend = document.getElementById('oscLegend');
+    const oscGridlines = document.getElementById('oscGridlines');
+    const oscHover = document.getElementById('oscHover');
+    const oscScatterSvg = document.getElementById('oscScatterSvg');
+    const oscTooltip = document.getElementById('oscTooltip');
+    const oscDatasetName = document.getElementById('oscDatasetName');
+    const oscPlotMeta = document.getElementById('oscPlotMeta');
+    const oscStatusCount = document.getElementById('oscStatusCount');
+    const oscStatusSelected = document.getElementById('oscStatusSelected');
     const resultViews = [...document.querySelectorAll('.result-view')];
     const resultTabs = [...document.querySelectorAll('.result-tab')];
     const statusDot = document.getElementById('builderStatusDot');
@@ -1413,7 +1418,6 @@
     gridSizeSelect.addEventListener('change',()=>{state.gridSize=Number(gridSizeSelect.value)||20;applyCanvasView();});
 
     document.getElementById('toggleToolboxBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('toolbox-collapsed');});
-    document.getElementById('toggleInspectorBtn').addEventListener('click',()=>{document.querySelector('.orange-builder-shell').classList.toggle('inspector-collapsed');});
 
     window.addEventListener('pointermove',e=>{
         if(!state.connectionDrag)return;
