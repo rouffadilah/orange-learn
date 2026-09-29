@@ -47,9 +47,7 @@
                 <div class="toolbox-list orange-scroll" id="toolboxList">
                     {% for item in widget %}
                     <button class="orange-tool-item" data-id="{{ item['id'] }}" data-name="{{ item['nama']|e }}" data-category="{{ item['kategori']|e }}" data-input="{{ item['input_data']|e }}" data-output="{{ item['output_data']|e }}">
-                        <span class="orange-tool-icon simple-tool-icon" aria-hidden="true">
-                            {% set n = item['nama']|lower %}
-                            {% if n == 'file' %}□{% elif 'csv' in n %}▤{% elif 'data table' in n %}▦{% elif 'scatter' in n %}⊙{% elif 'distribution' in n %}▥{% elif 'box plot' in n %}▤{% elif 'tree' in n %}⌘{% elif 'random forest' in n %}▦{% elif 'pca' in n %}◒{% elif 'k-means' in n %}◌{% elif 'linear regression' in n %}╱{% elif item['kategori'] == 'Model' %}M{% elif item['kategori'] == 'Visualize' %}V{% else %}D{% endif %}</span>
+                        <span class="orange-tool-icon simple-tool-icon" data-widget-icon-name="{{ item['nama']|e }}" aria-hidden="true"></span>
                         <span class="orange-tool-copy"><strong>{{ item['nama'] }}</strong><small>{{ item['kategori'] }}</small></span>
                         <span class="orange-tool-add">＋</span>
                     </button>
@@ -223,25 +221,36 @@
         statusDot.className = 'builder-status-dot ' + mode;
     }
 
+    const ORANGE_ICON_BASE = "https://raw.githubusercontent.com/biolab/orange3/eea7a75e8ff44b9c3acec855227ddc3138e13389/Orange/widgets/";
+    const ORANGE_ICON_MAP = {"File":"data/icons/File.svg","Data Table":"data/icons/Table.svg","Select Columns":"data/icons/SelectColumns.svg","Data Sampler":"data/icons/DataSampler.svg","Edit Domain":"data/icons/EditDomain.svg","Preprocess":"data/icons/Preprocess.svg","Impute":"data/icons/Impute.svg","Normalize":"data/icons/Normalize.svg","Distributions":"visualize/icons/Distribution.svg","Box Plot":"visualize/icons/BoxPlot.svg","Scatter Plot":"visualize/icons/ScatterPlot.svg","Heat Map":"visualize/icons/Heatmap-symbolic.svg","Tree":"model/icons/Tree-symbolic.svg","Random Forest":"model/icons/RandomForest-symbolic.svg","Logistic Regression":"model/icons/LogisticRegression-symbolic.svg","kNN":"model/icons/KNN-symbolic.svg","SVM":"model/icons/SVM-symbolic.svg","Neural Network":"model/icons/NN-symbolic.svg","Test & Score":"evaluate/icons/TestAndScore-symbolic.svg","Predictions":"evaluate/icons/Predictions-symbolic.svg","Confusion Matrix":"evaluate/icons/ConfusionMatrix-symbolic.svg","ROC Analysis":"evaluate/icons/ROCAnalysis-symbolic.svg","k-Means":"unsupervised/icons/KMeans-symbolic.svg","Hierarchical Clustering":"unsupervised/icons/HierarchicalClustering-symbolic.svg","PCA":"unsupervised/icons/PCA-symbolic.svg","Correlations":"data/icons/Correlations.svg"};
+    function orangeIconUrl(name) {
+        const key = String(name || "").trim();
+        if (ORANGE_ICON_MAP[key]) return ORANGE_ICON_BASE + ORANGE_ICON_MAP[key];
+        return ORANGE_ICON_BASE + "data/icons/Category-Data.svg";
+    }
+    function orangeIconMarkup(name, alt="") {
+        return `<img class="orange-widget-svg" src="${escapeHtml(orangeIconUrl(name))}" alt="${escapeHtml(alt || name || "")}" draggable="false">`;
+    }
+
     function widgetMeta(name) {
         const key = name.toLowerCase();
-        if (key === 'file' || key.includes('csv file')) return {icon:'📁', color:'data', inputs:['—'], outputs:['Data']};
-        if (key.includes('data table')) return {icon:'▦', color:'data', inputs:['Data'], outputs:['Data','Selection']};
-        if (key.includes('select columns')) return {icon:'◫', color:'transform', inputs:['Data'], outputs:['Data']};
-        if (key.includes('sampler')) return {icon:'◌', color:'transform', inputs:['Data'], outputs:['Data']};
-        if (key.includes('preprocess') || key.includes('impute') || key.includes('normalize')) return {icon:'🧹', color:'transform', inputs:['Data'], outputs:['Data']};
-        if (key.includes('distribution') || key.includes('histogram')) return {icon:'▥', color:'visualize', inputs:['Data'], outputs:['Data']};
-        if (key.includes('scatter')) return {icon:'⌁', color:'visualize', inputs:['Data'], outputs:['Data']};
-        if (key.includes('box plot')) return {icon:'▤', color:'visualize', inputs:['Data'], outputs:['Data']};
-        if (key.includes('heat map')) return {icon:'▦', color:'visualize', inputs:['Data'], outputs:['Data']};
-        if (key.includes('random forest')) return {icon:'🌲', color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('tree')) return {icon:'🌳', color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('knn')) return {icon:'◉', color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('svm')) return {icon:'◎', color:'model', inputs:['Data'], outputs:['Model']};
+        if (key === 'file' || key.includes('csv file')) return {icon:orangeIconUrl('File'), color:'data', inputs:['—'], outputs:['Data']};
+        if (key.includes('data table')) return {icon:orangeIconUrl('Data Table'), color:'data', inputs:['Data'], outputs:['Data','Selection']};
+        if (key.includes('select columns')) return {icon:orangeIconUrl('Select Columns'), color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('sampler')) return {icon:orangeIconUrl('Data Sampler'), color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('preprocess') || key.includes('impute') || key.includes('normalize')) return {icon:orangeIconUrl('Preprocess'), color:'transform', inputs:['Data'], outputs:['Data']};
+        if (key.includes('distribution') || key.includes('histogram')) return {icon:orangeIconUrl('Distributions'), color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('scatter')) return {icon:orangeIconUrl('Scatter Plot'), color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('box plot')) return {icon:orangeIconUrl('Box Plot'), color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('heat map')) return {icon:orangeIconUrl('Data Table'), color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('random forest')) return {icon:orangeIconUrl('Random Forest'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('tree')) return {icon:orangeIconUrl('Tree'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('knn')) return {icon:orangeIconUrl('Neural Network'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('svm')) return {icon:orangeIconUrl('Predictions'), color:'model', inputs:['Data'], outputs:['Model']};
         if (key.includes('regression')) return {icon:'╱', color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('test & score')) return {icon:'✓', color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
-        if (key.includes('confusion matrix')) return {icon:'▦', color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
-        if (key.includes('roc')) return {icon:'⌁', color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        if (key.includes('test & score')) return {icon:orangeIconUrl('Test & Score'), color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
+        if (key.includes('confusion matrix')) return {icon:orangeIconUrl('Data Table'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        if (key.includes('roc')) return {icon:orangeIconUrl('Scatter Plot'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
         return {icon:'🧩', color:'data', inputs:['Data'], outputs:['Data']};
     }
 
@@ -319,7 +328,7 @@
             el.innerHTML = `
                 ${portMarkup(node,'input',node.input)}
                 <div class="orange-node-topbar"><span class="orange-node-type">${escapeHtml(node.category)}</span><button class="orange-node-menu" data-menu="${node.id}" aria-label="Opsi">⋮</button></div>
-                <div class="orange-node-main"><div class="orange-node-icon">${node.icon}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.output)}</small></div></div>
+                <div class="orange-node-main"><div class="orange-node-icon">${orangeIconMarkup(node.name)}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.output)}</small></div></div>
                 <div class="orange-node-foot"><span>${node.name.toLowerCase()==='file' ? (state.datasetName ? 'Dataset loaded' : 'CSV input') : 'Data channel'}</span><button class="orange-node-remove" data-remove="${node.id}" aria-label="Hapus">×</button></div>
                 ${portMarkup(node,'output',node.output)}
             `;
