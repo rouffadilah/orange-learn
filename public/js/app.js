@@ -82,36 +82,29 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 
   /* Keep toolbox thumbnails identical to the icon used by the corresponding canvas node. */
-  function workflowWidgetIcon(name){
-    const key=String(name||'').toLowerCase();
-    if(key==='file'||key.includes('csv file')) return '📁';
-    if(key.includes('data table')) return '▦';
-    if(key.includes('select columns')) return '◫';
-    if(key.includes('sampler')) return '◌';
-    if(key.includes('preprocess')||key.includes('impute')||key.includes('normalize')) return '🧹';
-    if(key.includes('distribution')||key.includes('histogram')) return '▥';
-    if(key.includes('scatter')) return '⌁';
-    if(key.includes('box plot')) return '▤';
-    if(key.includes('heat map')) return '▦';
-    if(key.includes('random forest')) return '🌲';
-    if(key.includes('tree')) return '🌳';
-    if(key.includes('knn')) return '◉';
-    if(key.includes('svm')) return '◎';
-    if(key.includes('regression')) return '╱';
-    if(key.includes('test & score')) return '✓';
-    if(key.includes('confusion matrix')) return '▦';
-    if(key.includes('roc')) return '⌁';
-    return '🧩';
+  const ORANGE_OFFICIAL_ICON_BASE = "https://raw.githubusercontent.com/biolab/orange3/eea7a75e8ff44b9c3acec855227ddc3138e13389/Orange/widgets/";
+  const ORANGE_OFFICIAL_ICON_MAP = {"File":"data/icons/File.svg","Data Table":"data/icons/Table.svg","Select Columns":"data/icons/SelectColumns.svg","Data Sampler":"data/icons/DataSampler.svg","Edit Domain":"data/icons/EditDomain.svg","Preprocess":"data/icons/Preprocess.svg","Impute":"data/icons/Impute.svg","Normalize":"data/icons/Normalize.svg","Distributions":"visualize/icons/Distribution.svg","Box Plot":"visualize/icons/BoxPlot.svg","Scatter Plot":"visualize/icons/ScatterPlot.svg","Heat Map":"visualize/icons/Heatmap-symbolic.svg","Tree":"model/icons/Tree-symbolic.svg","Random Forest":"model/icons/RandomForest-symbolic.svg","Logistic Regression":"model/icons/LogisticRegression-symbolic.svg","kNN":"model/icons/KNN-symbolic.svg","SVM":"model/icons/SVM-symbolic.svg","Neural Network":"model/icons/NN-symbolic.svg","Test & Score":"evaluate/icons/TestAndScore-symbolic.svg","Predictions":"evaluate/icons/Predictions-symbolic.svg","Confusion Matrix":"evaluate/icons/ConfusionMatrix-symbolic.svg","ROC Analysis":"evaluate/icons/ROCAnalysis-symbolic.svg","k-Means":"unsupervised/icons/KMeans-symbolic.svg","Hierarchical Clustering":"unsupervised/icons/HierarchicalClustering-symbolic.svg","PCA":"unsupervised/icons/PCA-symbolic.svg","Correlations":"data/icons/Correlations.svg"};
+  function orangeOfficialIconUrl(name){
+    const key=String(name||'').trim();
+    return ORANGE_OFFICIAL_ICON_MAP[key] ? ORANGE_OFFICIAL_ICON_BASE+ORANGE_OFFICIAL_ICON_MAP[key] : ORANGE_OFFICIAL_ICON_BASE+'data/icons/Category-Data.svg';
   }
+  function orangeOfficialIconMarkup(name){
+    const src=orangeOfficialIconUrl(name);
+    return '<img class="orange-widget-svg" src="'+src+'" alt="" aria-hidden="true" draggable="false">';
+  }
+
+  function workflowWidgetIcon(name){ return orangeOfficialIconUrl(name); }
 
   function syncWorkflowToolboxIcons(){
     const builder=document.querySelector('.orange-builder-shell');
     if(!builder)return;
     builder.querySelectorAll('.orange-tool-item').forEach(item=>{
       const icon=item.querySelector('.orange-tool-icon');
-      if(icon) icon.textContent=workflowWidgetIcon(item.dataset.name||item.querySelector('.orange-tool-copy strong')?.textContent||'');
+      const name=item.dataset.name||item.querySelector('.orange-tool-copy strong')?.textContent||'';
+      if(icon)icon.innerHTML=orangeOfficialIconMarkup(name);
     });
   }
+
 
   function injectWorkflowIconStyles(){
     if(document.getElementById('orangeLearnWorkflowIconStyles'))return;
@@ -119,11 +112,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     style.id='orangeLearnWorkflowIconStyles';
     style.textContent=`
       .orange-builder-shell .orange-tool-item{align-items:center}
-      .orange-builder-shell .orange-tool-icon{width:40px;height:40px;min-width:40px;display:grid;place-items:center;border-radius:10px;background:#f7f8fa;border:1px solid #e5e7eb;box-shadow:none;font-size:21px;line-height:1;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}
+      .orange-builder-shell .orange-tool-icon{width:38px;height:38px;min-width:38px;display:grid;place-items:center;border-radius:9px;background:#fff;border:1px solid #e5e7eb;box-shadow:none;overflow:hidden}.orange-builder-shell .orange-tool-icon img{width:30px;height:30px;display:block}.orange-builder-shell .orange-node-icon{display:grid;place-items:center}.orange-builder-shell .orange-node-icon img{width:40px;height:40px;display:block}
       .orange-builder-shell .orange-tool-copy{min-width:0}
       .orange-builder-shell .orange-tool-copy strong{line-height:1.15}
       .orange-builder-shell .orange-tool-add{margin-left:auto}
-      .orange-builder-shell .orange-node-icon{font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}
+      
     `;
     document.head.appendChild(style);
   }
