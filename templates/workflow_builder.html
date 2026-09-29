@@ -163,6 +163,58 @@
 
 <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
 <input id="workflowFileInput" type="file" accept=".json,application/json" hidden>
+<div class="orange-file-dialog-backdrop" id="orangeFileDialog" hidden>
+  <div class="orange-file-dialog" role="dialog" aria-modal="true" aria-labelledby="orangeFileDialogTitle">
+    <div class="ofd-titlebar">
+      <div class="ofd-title" id="orangeFileDialogTitle"><span class="ofd-file-glyph">▧</span> File - Orange</div>
+      <button class="ofd-close" id="orangeFileDialogClose" type="button" aria-label="Tutup">×</button>
+    </div>
+    <div class="ofd-body">
+      <section class="ofd-source">
+        <div class="ofd-section-title">Source</div>
+        <label class="ofd-radio-row"><input type="radio" name="ofdSource" value="file" checked><span>File:</span>
+          <input id="orangeFilePath" class="ofd-path-input" type="text" value="" readonly>
+          <button id="orangeFileBrowse" class="ofd-browse-btn" type="button">📁 …</button>
+          <button id="orangeFileReload" class="ofd-reload-btn" type="button">⟳ Reload</button>
+        </label>
+        <label class="ofd-radio-row"><input type="radio" name="ofdSource" value="url"><span>URL:</span>
+          <input id="orangeFileUrl" class="ofd-path-input" type="text" placeholder="https://.../dataset.csv">
+        </label>
+      </section>
+      <section class="ofd-type">
+        <div class="ofd-section-title">File Type</div>
+        <select id="orangeFileType" class="ofd-select">
+          <option>Determine type from the file extension</option>
+          <option>CSV (comma separated)</option>
+          <option>CSV (semicolon separated)</option>
+          <option>Tab separated</option>
+        </select>
+      </section>
+      <section class="ofd-info">
+        <div class="ofd-section-title">Info</div>
+        <div id="orangeFileInfo" class="ofd-info-box">
+          <strong>Belum ada dataset</strong>
+          <span>Pilih file CSV untuk melihat struktur dataset.</span>
+        </div>
+      </section>
+      <section class="ofd-columns">
+        <div class="ofd-section-title">Columns <span>(Double click to edit)</span></div>
+        <div class="ofd-table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Role</th><th>Values</th></tr></thead>
+            <tbody id="orangeFileColumnsBody"><tr><td colspan="5" class="ofd-empty-cell">Belum ada dataset.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <div class="ofd-actions">
+        <button class="ofd-reset-btn" id="orangeFileReset" type="button">Reset</button>
+        <button class="ofd-apply-btn" id="orangeFileApply" type="button" disabled>Apply</button>
+      </div>
+    </div>
+    <div class="ofd-statusbar"><span>☰</span><span>?</span><span>▤</span><span>↦</span><strong id="orangeFileRowCount">—</strong></div>
+  </div>
+</div>
+
 
 <script>
 (() => {
@@ -181,6 +233,91 @@
     const zoomLabel = document.getElementById('zoomLabel');
     const csvInput = document.getElementById('csvInput');
     const workflowFileInput = document.getElementById('workflowFileInput');
+    const orangeFileDialog = document.getElementById('orangeFileDialog');
+    const orangeFileBrowse = document.getElementById('orangeFileBrowse');
+    const orangeFileReload = document.getElementById('orangeFileReload');
+    const orangeFileClose = document.getElementById('orangeFileDialogClose');
+    const orangeFileApply = document.getElementById('orangeFileApply');
+    const orangeFileReset = document.getElementById('orangeFileReset');
+    const orangeFilePath = document.getElementById('orangeFilePath');
+    const orangeFileUrl = document.getElementById('orangeFileUrl');
+    const orangeFileInfo = document.getElementById('orangeFileInfo');
+    const orangeFileColumnsBody = document.getElementById('orangeFileColumnsBody');
+    const orangeFileRowCount = document.getElementById('orangeFileRowCount');
+    let orangeFilePending = null;
+
+    function orangeFileDialogOpen() {
+        const fileNode = state.nodes.find(n => n.name.toLowerCase() === 'file');
+        if (fileNode) state.selectedNodeId = fileNode.id;
+        orangeFileDialog.hidden = false;
+        orangeFileDialog.classList.add('open');
+        document.body.classList.add('orange-file-dialog-open');
+        if (state.dataset) {
+            orangeFilePath.value = state.datasetName || '';
+            orangeFileRenderPreview(state.dataset, state.datasetName || '');
+        } else {
+            orangeFilePath.value = '';
+            orangeFilePending = null;
+            orangeFileRenderEmpty();
+        }
+    }
+
+    function orangeFileDialogClose() {
+        orangeFileDialog.classList.remove('open');
+        orangeFileDialog.hidden = true;
+        document.body.classList.remove('orange-file-dialog-open');
+    }
+
+    function orangeFileRenderEmpty() {
+        orangeFileInfo.innerHTML = '<strong>Belum ada dataset</strong><span>Pilih file CSV untuk melihat struktur dataset.</span>';
+        orangeFileColumnsBody.innerHTML = '<tr><td colspan="5" class="ofd-empty-cell">Belum ada dataset.</td></tr>';
+        orangeFileRowCount.textContent = '—';
+        orangeFileApply.disabled = true;
+    }
+
+    function orangeFileRenderPreview(parsed, name) {
+        if (!parsed || !parsed.headers?.length) { orangeFileRenderEmpty(); return; }
+        const profile = parsed.headers.map(h => {
+            const vals = parsed.data.map(r => r[h] ?? '').filter(v => String(v).trim() !== '');
+            const type = inferType(vals) === 'numeric' ? 'numeric' : 'categorical';
+            const unique = [...new Set(vals.map(v => String(v)))].slice(0, 4);
+            return {name:h,type,values:unique};
+        });
+        const numericCount = profile.filter(c => c.type === 'numeric').length;
+        const missing = parsed.headers.reduce((sum,h)=>sum + parsed.data.filter(r => String(r[h] ?? '').trim() === '').length, 0);
+        orangeFileInfo.innerHTML = '<strong>' + escapeHtml(name || 'CSV dataset') + '</strong>' +
+          '<span>' + parsed.data.length.toLocaleString('id-ID') + ' instances</span>' +
+          '<span>' + numericCount + ' features numerik · ' + missing + ' missing values</span>' +
+          '<span>Dataset CSV siap dimasukkan ke workflow.</span>';
+        orangeFileColumnsBody.innerHTML = profile.map((c,i) => {
+            const defaultRole = (i === profile.length - 1 && c.type === 'categorical') ? 'target' : 'feature';
+            return '<tr data-index="' + i + '"><td>' + (i+1) + '</td><td><strong>' + escapeHtml(c.name) + '</strong></td><td>' + escapeHtml(c.type) + '</td><td><select class="ofd-role" data-role-index="' + i + '"><option value="feature" ' + (defaultRole==='feature'?'selected':'') + '>feature</option><option value="target" ' + (defaultRole==='target'?'selected':'') + '>target</option><option value="meta">meta</option><option value="ignore">ignore</option></select></td><td>' + escapeHtml(c.values.join(', ')) + '</td></tr>';
+        }).join('');
+        orangeFileRowCount.textContent = String(parsed.data.length);
+        orangeFileApply.disabled = false;
+        orangeFileColumnsBody.querySelectorAll('.ofd-role').forEach(sel => sel.addEventListener('change', () => {}));
+    }
+
+    async function orangeFileBrowseUrl() {
+        const url = orangeFileUrl.value.trim();
+        if (!url) { orangeFileUrl.focus(); return; }
+        try {
+            setStatus('Memuat CSV dari URL…', 'working');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('URL CSV tidak dapat diakses.');
+            const text = await res.text();
+            const parsed = parseCsv(text);
+            orangeFilePending = {name: url.split('/').pop() || 'dataset.csv', parsed};
+            orangeFilePath.value = orangeFilePending.name;
+            orangeFileRenderPreview(parsed, orangeFilePending.name);
+        } catch (err) {
+            setStatus('URL CSV gagal dimuat', 'error');
+            orangeFileInfo.innerHTML = '<strong>Gagal memuat URL</strong><span>' + escapeHtml(err.message) + '</span>';
+        }
+    }
+
+    window.orangeLearnOpenFileDialog = orangeFileDialogOpen;
+
     const world = document.getElementById('canvasWorld');
     const canvasGrid = document.getElementById('canvasGrid');
     const workspaceModeChip = document.getElementById('workspaceModeChip');
@@ -222,7 +359,7 @@
     }
 
     const ORANGE_ICON_BASE = "https://raw.githubusercontent.com/biolab/orange3/eea7a75e8ff44b9c3acec855227ddc3138e13389/Orange/widgets/";
-    const ORANGE_ICON_MAP = {"File":"data/icons/File.svg","Data Table":"data/icons/Table.svg","Select Columns":"data/icons/SelectColumns.svg","Data Sampler":"data/icons/DataSampler.svg","Edit Domain":"data/icons/EditDomain.svg","Preprocess":"data/icons/Preprocess.svg","Impute":"data/icons/Impute.svg","Normalize":"data/icons/Normalize.svg","Distributions":"visualize/icons/Distribution.svg","Box Plot":"visualize/icons/BoxPlot.svg","Scatter Plot":"visualize/icons/ScatterPlot.svg","Heat Map":"visualize/icons/Heatmap-symbolic.svg","Tree":"model/icons/Tree-symbolic.svg","Random Forest":"model/icons/RandomForest-symbolic.svg","Logistic Regression":"model/icons/LogisticRegression-symbolic.svg","kNN":"model/icons/KNN-symbolic.svg","SVM":"model/icons/SVM-symbolic.svg","Neural Network":"model/icons/NN-symbolic.svg","Test & Score":"evaluate/icons/TestAndScore-symbolic.svg","Predictions":"evaluate/icons/Predictions-symbolic.svg","Confusion Matrix":"evaluate/icons/ConfusionMatrix-symbolic.svg","ROC Analysis":"evaluate/icons/ROCAnalysis-symbolic.svg","k-Means":"unsupervised/icons/KMeans-symbolic.svg","Hierarchical Clustering":"unsupervised/icons/HierarchicalClustering-symbolic.svg","PCA":"unsupervised/icons/PCA-symbolic.svg","Correlations":"data/icons/Correlations.svg"};
+    const ORANGE_ICON_MAP = {"File":"data/icons/File.svg","Data Table":"data/icons/Table.svg","Select Columns":"data/icons/SelectColumns.svg","Data Sampler":"data/icons/DataSampler.svg","Edit Domain":"data/icons/EditDomain.svg","Preprocess":"data/icons/Preprocess.svg","Impute":"data/icons/Impute.svg","Normalize":"data/icons/Normalize.svg","Distributions":"visualize/icons/Distribution.svg","Box Plot":"visualize/icons/BoxPlot.svg","Scatter Plot":"visualize/icons/ScatterPlot.svg","Heat Map":"visualize/icons/Heatmap-symbolic.svg","Tree":"model/icons/Tree-symbolic.svg","Random Forest":"model/icons/RandomForest-symbolic.svg","Logistic Regression":"model/icons/LogisticRegression-symbolic.svg","kNN":"model/icons/KNN-symbolic.svg","SVM":"model/icons/SVM-symbolic.svg","Neural Network":"model/icons/NN-symbolic.svg","Test & Score":"evaluate/icons/TestLearners1-symbolic.svg","Predictions":"evaluate/icons/Predictions-symbolic.svg","Confusion Matrix":"evaluate/icons/ConfusionMatrix-symbolic.svg","ROC Analysis":"evaluate/icons/ROCAnalysis-symbolic.svg","k-Means":"unsupervised/icons/KMeans-symbolic.svg","Hierarchical Clustering":"unsupervised/icons/HierarchicalClustering-symbolic.svg","PCA":"unsupervised/icons/PCA-symbolic.svg","Correlations":"data/icons/Correlations.svg"};
     function orangeIconUrl(name) {
         const key = String(name || "").trim();
         if (ORANGE_ICON_MAP[key]) return ORANGE_ICON_BASE + ORANGE_ICON_MAP[key];
@@ -242,15 +379,15 @@
         if (key.includes('distribution') || key.includes('histogram')) return {icon:orangeIconUrl('Distributions'), color:'visualize', inputs:['Data'], outputs:['Data']};
         if (key.includes('scatter')) return {icon:orangeIconUrl('Scatter Plot'), color:'visualize', inputs:['Data'], outputs:['Data']};
         if (key.includes('box plot')) return {icon:orangeIconUrl('Box Plot'), color:'visualize', inputs:['Data'], outputs:['Data']};
-        if (key.includes('heat map')) return {icon:orangeIconUrl('Data Table'), color:'visualize', inputs:['Data'], outputs:['Data']};
+        if (key.includes('heat map')) return {icon:orangeIconUrl('Heat Map'), color:'visualize', inputs:['Data'], outputs:['Data']};
         if (key.includes('random forest')) return {icon:orangeIconUrl('Random Forest'), color:'model', inputs:['Data'], outputs:['Model']};
         if (key.includes('tree')) return {icon:orangeIconUrl('Tree'), color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('knn')) return {icon:orangeIconUrl('Neural Network'), color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('svm')) return {icon:orangeIconUrl('Predictions'), color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('regression')) return {icon:'╱', color:'model', inputs:['Data'], outputs:['Model']};
-        if (key.includes('test & score')) return {icon:orangeIconUrl('Test & Score'), color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
-        if (key.includes('confusion matrix')) return {icon:orangeIconUrl('Data Table'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
-        if (key.includes('roc')) return {icon:orangeIconUrl('Scatter Plot'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        if (key.includes('knn')) return {icon:orangeIconUrl('kNN'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('svm')) return {icon:orangeIconUrl('SVM'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('regression')) return {icon:orangeIconUrl('Logistic Regression'), color:'model', inputs:['Data'], outputs:['Model']};
+        if (key.includes('test & score')) return {icon:orangeIconUrl('Test and Score'), color:'evaluate', inputs:['Data','Model'], outputs:['Evaluation']};
+        if (key.includes('confusion matrix')) return {icon:orangeIconUrl('Confusion Matrix'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
+        if (key.includes('roc')) return {icon:orangeIconUrl('ROC Analysis'), color:'evaluate', inputs:['Evaluation'], outputs:['Report']};
         return {icon:'🧩', color:'data', inputs:['Data'], outputs:['Data']};
     }
 
@@ -346,7 +483,7 @@
         });
         el.addEventListener('dblclick', () => {
             selectNode(node.id);
-            if (node.name.toLowerCase() === 'file') csvInput.click();
+            if (node.name.toLowerCase() === 'file') orangeFileDialogOpen();
         });
         el.querySelectorAll('.orange-port').forEach(port => {
             port.addEventListener('click', e => {
@@ -681,7 +818,7 @@
         }
         inspectorTitle.textContent=node.name; inspectorPill.textContent=node.category;
         const key=node.name.toLowerCase();
-        let html=`<div class="inspector-summary"><div class="inspector-large-icon ${node.color}">${node.icon}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.input)} → ${escapeHtml(node.output)}</small></div></div>`;
+        let html=`<div class="inspector-summary"><div class="inspector-large-icon ${node.color}">${orangeIconMarkup(node.name)}</div><div><strong>${escapeHtml(node.name)}</strong><small>${escapeHtml(node.input)} → ${escapeHtml(node.output)}</small></div></div>`;
         if (key==='file') {
             html += `<div class="inspector-section"><label>Dataset CSV</label><button class="upload-dataset-btn" id="uploadCsvBtn">📁 Pilih file CSV</button><button class="upload-sample-btn" id="loadSampleBtn">✨ Muat dataset contoh</button><p class="inspector-help">Format CSV dengan header pada baris pertama. Dataset diproses lokal di browser.</p>${state.dataset ? `<div class="loaded-file"><strong>${escapeHtml(state.datasetName)}</strong><span>${state.dataset.data.length.toLocaleString('id-ID')} baris · ${state.dataset.headers.length} kolom</span></div>`:''}</div>`;
         } else if (!state.dataset) {
@@ -692,7 +829,7 @@
         if (key.includes('data sampler')) html += `<div class="inspector-section"><label>Ukuran sampel: <span id="sampleValue">${node.config.sample || 80}%</span></label><input class="range-input" id="sampleRange" type="range" min="10" max="100" value="${node.config.sample || 80}"><p class="inspector-help">Digunakan sebagai subset data untuk eksplorasi cepat.</p></div>`;
         if (key.includes('preprocess')) html += `<div class="inspector-section"><label>Penanganan missing value</label><select class="inspector-select" id="missingMode"><option value="median">Numerik → median</option><option value="mode">Kategorikal → modus</option><option value="drop">Hapus baris kosong</option></select><p class="inspector-help">Perubahan hanya berlaku pada dataset yang diteruskan workflow.</p></div>`;
         inspectorBody.innerHTML=html;
-        document.getElementById('uploadCsvBtn')?.addEventListener('click',()=>csvInput.click());
+        document.getElementById('uploadCsvBtn')?.addEventListener('click',()=>orangeFileDialogOpen());
         document.getElementById('loadSampleBtn')?.addEventListener('click', async()=>{
             try { setStatus('Memuat dataset contoh…','working'); const response=await fetch('/datasets/contoh_siswa.csv'); if(!response.ok) throw new Error('Dataset contoh tidak ditemukan.'); loadDataset('contoh_siswa.csv',parseCsv(await response.text())); showResult('overview'); } catch(err) { setStatus('Dataset contoh gagal dimuat','error'); document.getElementById('result-log').innerHTML=`<div class="validation-result warning"><strong>Dataset contoh gagal dimuat</strong><p>${escapeHtml(err.message)}</p></div>`; showResult('log'); }
         });
@@ -834,7 +971,16 @@
     document.getElementById('widgetSearch').addEventListener('input',filterTools);
     function filterTools(){const q=document.getElementById('widgetSearch').value.toLowerCase().trim();const cat=document.querySelector('.toolbox-tab.active').dataset.cat;widgetButtons.forEach(b=>{const okCat=cat==='all'||classifyCategory(b.dataset.name,b.dataset.category)===cat;const okQ=!q||(b.dataset.name+' '+b.dataset.category).toLowerCase().includes(q);b.style.display=okCat&&okQ?'flex':'none';});}
 
-    csvInput.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;const node=state.nodes.find(n=>n.id===state.selectedNodeId&&n.name.toLowerCase()==='file')||state.nodes.find(n=>n.name.toLowerCase()==='file'); if(!node){setStatus('Tambahkan widget File','error');return;} const reader=new FileReader();reader.onload=()=>{try{loadDataset(file.name,parseCsv(String(reader.result||'')));showResult('overview');}catch(err){setStatus('CSV tidak dapat dibaca','error');document.getElementById('result-log').innerHTML=`<div class="validation-result warning"><strong>CSV gagal dibaca</strong><p>${escapeHtml(err.message)}</p></div>`;showResult('log');}};reader.readAsText(file);e.target.value='';});
+    csvInput.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;orangeFilePending={name:file.name,parsed:null};orangeFilePath.value=file.name;const reader=new FileReader();reader.onload=()=>{try{const parsed=parseCsv(String(reader.result||''));orangeFilePending.parsed=parsed;orangeFileRenderPreview(parsed,file.name);setStatus('CSV siap dimuat','ready');}catch(err){orangeFilePending=null;orangeFileRenderEmpty();setStatus('CSV tidak dapat dibaca','error');orangeFileInfo.innerHTML='<strong>CSV gagal dibaca</strong><span>'+escapeHtml(err.message)+'</span>';}};reader.readAsText(file);e.target.value='';});
+    orangeFileBrowse.addEventListener('click',()=>csvInput.click());
+    orangeFileReload.addEventListener('click',()=>{if(orangeFilePending?.parsed){orangeFileRenderPreview(orangeFilePending.parsed,orangeFilePending.name);return;} if(state.dataset){orangeFileRenderPreview(state.dataset,state.datasetName);} else csvInput.click();});
+    orangeFileClose.addEventListener('click',orangeFileDialogClose);
+    orangeFileDialog.addEventListener('click',e=>{if(e.target===orangeFileDialog)orangeFileDialogClose();});
+    orangeFileReset.addEventListener('click',()=>{orangeFilePending=null;orangeFilePath.value='';orangeFileUrl.value='';orangeFileRenderEmpty();});
+    document.querySelectorAll('input[name="ofdSource"]').forEach(r=>r.addEventListener('change',()=>{if(r.value==='url'&&r.checked)orangeFileUrl.focus();}));
+    orangeFileUrl.addEventListener('change',orangeFileBrowseUrl);
+    orangeFileApply.addEventListener('click',()=>{if(!orangeFilePending?.parsed)return;loadDataset(orangeFilePending.name,orangeFilePending.parsed);orangeFileDialogClose();showResult('overview');});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!orangeFileDialog.hidden)orangeFileDialogClose();});
     document.getElementById('newWorkflowBtn').addEventListener('click',clearWorkflow);
     document.getElementById('sampleWorkflowBtn').addEventListener('click',buildSampleWorkflow);
     document.getElementById('clearBtn').addEventListener('click',clearWorkflow);
