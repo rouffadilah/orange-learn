@@ -490,12 +490,22 @@
     function bindNodeEvents(el, node) {
         el.addEventListener('mousedown', e => {
             if (e.target.closest('.orange-port,.orange-node-menu,.orange-node-label')) return;
+            el.classList.remove('bubble-click');
+            void el.offsetWidth;
+            el.classList.add('bubble-click');
+            setTimeout(()=>el.classList.remove('bubble-click'),360);
             selectNode(node.id, {noRender:true});
             beginDrag(e, el, node);
         });
         el.addEventListener('dblclick', () => {
-            selectNode(node.id);
-            if (node.name.toLowerCase() === 'file') orangeFileDialogOpen();
+            el.classList.remove('bubble-double');
+            void el.offsetWidth;
+            el.classList.add('bubble-double');
+            setTimeout(()=>el.classList.remove('bubble-double'),520);
+            selectNode(node.id, {noRender:true});
+            const key=node.name.toLowerCase();
+            if (key === 'file') orangeFileDialogOpen();
+            else if (key.includes('scatter plot')) openOrangeScatter(node);
         });
 
         el.querySelectorAll('.orange-port').forEach(port => {
@@ -1009,7 +1019,162 @@
     function bindChartSwitches(){document.querySelectorAll('.chart-switch').forEach(btn=>btn.addEventListener('click',()=>{renderChart(btn.dataset.chartType);showResult('chart');}));}
 
 
+
+    function scatterNum(value) {
+        const n = Number(String(value ?? '').replace(',','.'));
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function deterministicJitter(index, amount) {
+        if (!amount) return 0;
+        const x = Math.sin((index + 1) * 12.9898) * 43758.5453;
+        return ((x - Math.floor(x)) * 2 - 1) * amount;
+    }
+
+    function openOrangeScatter(node = null) {
+        if (!state.dataset || !oscScatterSvg) {
+            setStatus('Muat dataset terlebih dahulu','error');
+            return;
+        }
+        const active = node || state.nodes.find(n => n.id === state.selectedNodeId);
+        const headers = state.dataset.headers.slice();
+        const numeric = headers.filter(h => state.dataset.data.some(r => scatterNum(r[h]) !== null));
+        if (numeric.length < 2) {
+            setStatus('Scatter Plot membutuhkan minimal 2 kolom numerik','error');
+            return;
+        }
+
+        const categorical = headers.filter(h => {
+            const vals = state.dataset.data.map(r => String(r[h] ?? '').trim()).filter(Boolean);
+            const unique = new Set(vals);
+            return vals.length && unique.size <= Math.max(12, Math.min(30, Math.round(state.dataset.data.length * .25)));
+        });
+        const defaultColor = categorical[categorical.length - 1] || '';
+        const defaultX = active?.config?.x && numeric.includes(active.config.x) ? active.config.x : numeric[0];
+        const defaultY = active?.config?.y && numeric.includes(active.config.y) ? active.config.y : numeric[1];
+
+        const fillSelect = (el, values, selected='', emptyLabel='') => {
+            if (!el) return;
+            el.innerHTML = (emptyLabel ? `<option value="">${escapeHtml(emptyLabel)}</option>` : '') +
+                values.map(v => `<option value="${escapeHtml(v)}" ${v===selected?'selected':''}>${escapeHtml(v)}</option>`).join('');
+        };
+        fillSelect(oscAxisX, numeric, defaultX);
+        fillSelect(oscAxisY, numeric, defaultY);
+        fillSelect(oscColor, categorical, defaultColor, '(No color)');
+        fillSelect(oscShape, categorical, '', '(Same shape)');
+        fillSelect(oscSize, numeric, '', '(Same size)');
+        fillSelect(oscLabel, headers, '', '(No labels)');
+
+        orangeScatterModal.hidden=false;
+        orangeScatterModal.classList.add('open');
+        document.body.classList.add('orange-scatter-open');
+        oscDatasetName.textContent = state.datasetName || 'Dataset';
+        oscStatusCount.textContent = state.dataset.data.length.toLocaleString('id-ID');
+        oscPlotMeta.textContent = `${defaultX} × ${defaultY}`;
+        renderOrangeScatter();
+    }
+
+    function closeOrangeScatter() {
+        orangeScatterModal.classList.remove('open');
+        orangeScatterModal.hidden=true;
+        document.body.classList.remove('orange-scatter-open');
+        if (oscTooltip) oscTooltip.hidden=true;
+    }
+
+    function renderOrangeScatter() {
+        if (!state.dataset || !oscScatterSvg) return;
+        const headers=state.dataset.headers;
+        const numeric=headers.filter(h=>state.dataset.data.some(r=>scatterNum(r[h])!==null));
+        const x=oscAxisX?.value || numeric[0];
+        const y=oscAxisY?.value || numeric[1];
+        if(!x||!y)return;
+        const colorCol=oscColor?.value || '';
+        const labelCol=oscLabel?.value || '';
+        const sizeCol=oscSize?.value || '';
+        const symbolSize=Number(oscSymbolSize?.value || 7);
+        const opacity=Number(oscOpacity?.value || .75);
+        const jitter=Number(oscJitter?.value || 0) * .012;
+        const grid=Boolean(oscGridlines?.checked);
+        const legend=Boolean(oscLegend?.checked);
+        const hover=Boolean(oscHover?.checked);
+        const W=980,H=620,L=70,R=22,T=25,B=60;
+        const points=state.dataset.data.map((row,i)=>{
+            const xv=scatterNum(row[x]), yv=scatterNum(row[y]);
+            if(xv===null||yv===null)return null;
+            return {row,index:i,x:xv+deterministicJitter(i,jitter),y:yv+deterministicJitter(i+77,jitter)};
+        }).filter(Boolean);
+        if(!points.length){
+            oscScatterSvg.innerHTML='<text x="490" y="310" text-anchor="middle" fill="#66717a" font-size="15">Tidak ada pasangan nilai numerik.</text>';
+            return;
+        }
+        const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+        let minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+        const padX=(maxX-minX||1)*.08, padY=(maxY-minY||1)*.08;
+        minX-=padX;maxX+=padX;minY-=padY;maxY+=padY;
+        const sx=v=>L+((v-minX)/(maxX-minX||1))*(W-L-R);
+        const sy=v=>H-B-((v-minY)/(maxY-minY||1))*(H-T-B);
+
+        const palette=['#69b3e7','#ef756c','#9dde45','#f0a14e','#af8fe8','#56c8c1','#e57fb4','#9aa7b2','#f2cf5b','#7d8ff0','#70bd78','#df8b52'];
+        const groups=[...new Set(points.map(p=>String(p.row[colorCol]??'').trim()||'(missing)'))];
+        const colorMap=new Map(groups.map((g,i)=>[g,palette[i%palette.length]]));
+        const lines=[];
+        if(grid){
+            for(let i=0;i<=8;i++){
+                const gx=L+(W-L-R)*i/8, gy=T+(H-T-B)*i/8;
+                lines.push(`<line x1="${gx}" y1="${T}" x2="${gx}" y2="${H-B}" class="osc-gridline"/><line x1="${L}" y1="${gy}" x2="${W-R}" y2="${gy}" class="osc-gridline"/>`);
+            }
+        }
+        const circles=points.map(p=>{
+            const group=String(p.row[colorCol]??'').trim()||'(missing)';
+            let r=symbolSize/1.55;
+            if(sizeCol){
+                const vals=points.map(q=>scatterNum(q.row[sizeCol])).filter(v=>v!==null);
+                if(vals.length){
+                    const a=Math.min(...vals),b=Math.max(...vals),sv=scatterNum(p.row[sizeCol]);
+                    if(sv!==null)r=3+((sv-a)/(b-a||1))*8;
+                }
+            }
+            const fill=colorMap.get(group)||palette[0];
+            const label=String(p.row[labelCol]??'');
+            return `<circle cx="${sx(p.x)}" cy="${sy(p.y)}" r="${r.toFixed(2)}" fill="${fill}" fill-opacity="${opacity}" stroke="${fill}" stroke-width="1.2" data-point-index="${p.index}" class="osc-point" data-label="${escapeHtml(label)}"></circle>`;
+        }).join('');
+        const legendHtml=legend&&colorCol?groups.slice(0,12).map((g,i)=>`<g transform="translate(${W-145},${T+24+i*22})"><circle cx="0" cy="0" r="7" fill="${colorMap.get(g)}" fill-opacity=".85" stroke="${colorMap.get(g)}"/><text x="13" y="4" class="osc-legend-text">${escapeHtml(g.slice(0,22))}</text></g>`).join(''):'';
+        const legendBox=legendHtml?`<g class="osc-legend-box"><rect x="${W-176}" y="${T+4}" width="158" height="${Math.min(286,24+groups.slice(0,12).length*22)}" rx="4"/>${legendHtml}</g>`:'';
+
+        oscScatterSvg.innerHTML=`
+          ${lines.join('')}
+          <line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" class="osc-axis-line"/>
+          <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" class="osc-axis-line"/>
+          <text x="${(L+W-R)/2}" y="${H-15}" text-anchor="middle" class="osc-axis-label">${escapeHtml(x)}</text>
+          <text x="18" y="${(T+H-B)/2}" transform="rotate(-90 18 ${(T+H-B)/2})" text-anchor="middle" class="osc-axis-label">${escapeHtml(y)}</text>
+          ${circles}
+          ${legendBox}
+        `;
+        oscPlotMeta.textContent=`${x} × ${y}${colorCol?' · Color: '+colorCol:''}`;
+        oscStatusCount.textContent=points.length.toLocaleString('id-ID');
+        oscScatterSvg.querySelectorAll('.osc-point').forEach(point=>{
+            point.addEventListener('mouseenter',ev=>{
+                if(!hover)return;
+                const idx=Number(point.dataset.pointIndex);
+                const row=state.dataset.data[idx];
+                oscTooltip.innerHTML=headers.map(h=>`<div><strong>${escapeHtml(h)}:</strong> ${escapeHtml(row[h]??'')}</div>`).join('');
+                oscTooltip.hidden=false;
+                const wrap=document.getElementById('oscPlotWrap').getBoundingClientRect();
+                const p=point.getBoundingClientRect();
+                oscTooltip.style.left=Math.min(wrap.width-210,Math.max(8,p.left-wrap.left+12))+'px';
+                oscTooltip.style.top=Math.min(wrap.height-120,Math.max(8,p.top-wrap.top-10))+'px';
+            });
+            point.addEventListener('mouseleave',()=>{if(oscTooltip)oscTooltip.hidden=true;});
+            point.addEventListener('click',()=>{
+                oscScatterSvg.querySelectorAll('.osc-point.active').forEach(n=>n.classList.remove('active'));
+                point.classList.add('active');
+                oscStatusSelected.textContent='1';
+            });
+        });
+    }
+
     function renderInspector() {
+        if (!inspectorBody) return;
         const node = state.nodes.find(n=>n.id===state.selectedNodeId);
         if (!node) {
             inspectorTitle.textContent='Canvas'; inspectorPill.textContent='—'; inspectorBody.innerHTML=`<div class="inspector-empty"><div class="inspector-icon">🛠</div><strong>Pilih widget</strong><p>Atur parameter widget di panel ini. Klik node File untuk memilih dataset CSV.</p></div>`; return;
@@ -1276,7 +1441,7 @@
         else if(e.key==='1'){resetView();}
         else if(e.key.toLowerCase()==='g'){state.grid=!state.grid;updateCanvasPreferences();}
         else if(e.key.toLowerCase()==='s'){state.snap=!state.snap;updateCanvasPreferences();}
-        else if(e.key==='Escape'){if(state.connectionDrag)cancelConnectionDrag();else{state.connectingFrom=null;panPointer=null;hideConnectionRecommendations();setStatus('Siap','ready');}}
+        else if(e.key==='Escape'){if(!orangeScatterModal.hidden){closeOrangeScatter();}else if(state.connectionDrag)cancelConnectionDrag();else{state.connectingFrom=null;panPointer=null;hideConnectionRecommendations();setStatus('Siap','ready');}}
         else if(e.key==='Delete' && state.selectedNodeId!==null){removeNode(state.selectedNodeId);setStatus('Widget dihapus','ready');}
     });
     window.addEventListener('keyup',e=>{if(e.code==='Space'){spacePressed=false;workspaceModeChip.textContent='Pan: drag area kosong';}});
@@ -1307,6 +1472,18 @@
     });
     document.addEventListener('click',e=>{if(!customizePopover.hidden && !customizePopover.contains(e.target) && e.target.id!=='canvasCustomizeBtn')togglePopover(false);});
     window.addEventListener('resize',()=>{renderConnections();});
+
+    orangeScatterClose?.addEventListener('click',closeOrangeScatter);
+    orangeScatterModal?.addEventListener('click',e=>{if(e.target===orangeScatterModal)closeOrangeScatter();});
+    document.getElementById('oscFindProjection')?.addEventListener('click',()=>{
+        const numeric=state.dataset?.headers.filter(h=>state.dataset.data.some(r=>scatterNum(r[h])!==null))||[];
+        if(numeric.length>=2){oscAxisX.value=numeric[0];oscAxisY.value=numeric[1];renderOrangeScatter();}
+    });
+    document.getElementById('oscSwapX')?.addEventListener('click',()=>{const t=oscAxisX.value;oscAxisX.value=oscAxisY.value;oscAxisY.value=t;renderOrangeScatter();});
+    document.getElementById('oscSwapY')?.addEventListener('click',()=>{const t=oscAxisX.value;oscAxisX.value=oscAxisY.value;oscAxisY.value=t;renderOrangeScatter();});
+    [oscAxisX,oscAxisY,oscColor,oscShape,oscSize,oscLabel,oscSymbolSize,oscOpacity,oscJitter,oscLegend,oscGridlines,oscHover].forEach(el=>el?.addEventListener('input',renderOrangeScatter));
+    [oscAxisX,oscAxisY,oscColor,oscShape,oscSize,oscLabel].forEach(el=>el?.addEventListener('change',renderOrangeScatter));
+    document.getElementById('oscFitTool')?.addEventListener('click',renderOrangeScatter);
 
     loadCanvasPrefs();
     updateCanvasPreferences();
