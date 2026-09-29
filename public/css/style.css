@@ -2547,3 +2547,49 @@ body{background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,syste
 .osc-statusbar{height:28px;display:flex;align-items:center;gap:13px;padding:0 9px;background:#e9ecef;border-top:1px solid #c5cbd0;color:#4d555c;font-size:11px;flex:none}.osc-statusbar strong{font-weight:600}
 @media (max-width:900px){.osc-body{grid-template-columns:280px minmax(0,1fr)}.osc-controls label{grid-template-columns:58px minmax(0,1fr) 25px}.orange-scatter-window{width:99vw;height:96vh}}
 @media (max-width:720px){.osc-body{grid-template-columns:1fr}.osc-controls{max-height:42%;border-right:0;border-bottom:1px solid #c9ced3}.osc-plot-area{min-height:55vh}}
+
+/* Fix builder layout: toolbox and canvas share the same full-height row */
+.orange-builder-shell{
+  display:grid!important;
+  grid-template-columns:260px minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  height:calc(100vh - 95px)!important;
+  min-height:680px!important;
+  overflow:hidden!important;
+}
+.orange-builder-shell .orange-toolbox-panel{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-height:0!important;
+}
+.orange-builder-shell .orange-builder-center{
+  grid-column:2!important;
+  grid-row:1!important;
+  min-width:0!important;
+  min-height:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.orange-builder-shell .orange-canvas{
+  flex:1 1 auto!important;
+  min-height:0!important;
+}
+.orange-builder-shell .orange-results-panel{
+  flex:0 0 250px!important;
+}
+@media (max-width:900px){
+  .orange-builder-shell{
+    grid-template-columns:220px minmax(0,1fr)!important;
+    min-height:620px!important;
+  }
+}
+@media (max-width:720px){
+  .orange-builder-shell{
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto minmax(0,1fr)!important;
+    height:calc(100vh - 85px)!important;
+  }
+  .orange-builder-shell .orange-toolbox-panel{grid-column:1!important;grid-row:1!important;max-height:270px}
+  .orange-builder-shell .orange-builder-center{grid-column:1!important;grid-row:2!important}
+  .orange-builder-shell .orange-results-panel{flex-basis:220px!important}
+}
