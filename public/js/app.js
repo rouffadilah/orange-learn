@@ -135,18 +135,10 @@ document.addEventListener('dblclick',event=>{
   if(!node) return;
   const name=node.querySelector('.orange-node-main strong')?.textContent?.trim().toLowerCase();
   if(name!=='file') return;
-  const input=document.getElementById('csvInput');
-  if(!input) return;
   event.preventDefault();
   event.stopPropagation();
   if(typeof event.stopImmediatePropagation==='function') event.stopImmediatePropagation();
-  input.value='';
-  try {
-    if(typeof input.showPicker==='function') input.showPicker();
-    else input.click();
-  } catch (_) {
-    input.click();
-  }
+  if(typeof window.orangeLearnOpenFileDialog==='function') window.orangeLearnOpenFileDialog();
 },{capture:true});
 
 /* Google Sheets export fix: the Sheets values.update API expects valueInputOption as a query parameter, not inside the JSON body. */
