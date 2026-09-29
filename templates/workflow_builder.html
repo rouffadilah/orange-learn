@@ -206,7 +206,69 @@
     </div>
     <div class="ofd-statusbar"><span>☰</span><span>?</span><span>▤</span><span>↦</span><strong id="orangeFileRowCount">—</strong></div>
   </div>
+</div><div class="orange-scatter-backdrop" id="orangeScatterModal" hidden>
+  <div class="orange-scatter-window" role="dialog" aria-modal="true" aria-labelledby="orangeScatterTitle">
+    <div class="osc-titlebar">
+      <div class="osc-title" id="orangeScatterTitle"><span class="osc-brand-glyph">•</span> Scatter Plot - Orange</div>
+      <button class="osc-close" id="orangeScatterClose" type="button" aria-label="Tutup">×</button>
+    </div>
+    <div class="osc-body">
+      <aside class="osc-controls">
+        <section class="osc-group">
+          <div class="osc-group-title">Axes</div>
+          <label>Axis x:
+            <select id="oscAxisX" class="osc-select"></select>
+            <button class="osc-axis-mini" id="oscSwapX" type="button">↔</button>
+          </label>
+          <label>Axis y:
+            <select id="oscAxisY" class="osc-select"></select>
+            <button class="osc-axis-mini" id="oscSwapY" type="button">↕</button>
+          </label>
+          <button class="osc-find-btn" id="oscFindProjection" type="button">Find Informative Projections</button>
+        </section>
+        <section class="osc-group">
+          <div class="osc-group-title">Attributes</div>
+          <label>Color: <select id="oscColor" class="osc-select"></select></label>
+          <label>Shape: <select id="oscShape" class="osc-select"><option value="">(Same shape)</option></select></label>
+          <label>Size: <select id="oscSize" class="osc-select"><option value="">(Same size)</option></select></label>
+          <label>Label: <select id="oscLabel" class="osc-select"><option value="">(No labels)</option></select></label>
+          <label class="osc-check"><input id="oscLabelSelected" type="checkbox"> Label only selection and subset</label>
+        </section>
+        <section class="osc-sliders">
+          <label>Symbol size <input id="oscSymbolSize" type="range" min="3" max="12" value="7"></label>
+          <label>Opacity <input id="oscOpacity" type="range" min="0.2" max="1" step="0.05" value="0.75"></label>
+          <label>Jittering <input id="oscJitter" type="range" min="0" max="10" value="0"></label>
+          <label class="osc-check"><input id="oscJitterNumeric" type="checkbox"> Jitter numeric values</label>
+        </section>
+        <section class="osc-options">
+          <label class="osc-check"><input id="oscColorRegions" type="checkbox"> Show color regions</label>
+          <label class="osc-check"><input id="oscLegend" type="checkbox" checked> Show legend</label>
+          <label class="osc-check"><input id="oscGridlines" type="checkbox"> Show gridlines</label>
+          <label class="osc-check"><input id="oscHover" type="checkbox" checked> Show all data on mouse hover</label>
+        </section>
+        <section class="osc-tools">
+          <div class="osc-group-title">Zoom/Select</div>
+          <div class="osc-tool-row">
+            <button class="osc-tool active" id="oscSelectTool" type="button">↖</button>
+            <button class="osc-tool" id="oscPanTool" type="button">✋</button>
+            <button class="osc-tool" id="oscZoomTool" type="button">⌕</button>
+            <button class="osc-tool fit" id="oscFitTool" type="button">⛶</button>
+          </div>
+        </section>
+      </aside>
+      <main class="osc-plot-area">
+        <div class="osc-plot-toolbar"><span id="oscDatasetName">Dataset</span><span id="oscPlotMeta">—</span></div>
+        <div class="osc-plot-wrap" id="oscPlotWrap">
+          <svg id="oscScatterSvg" viewBox="0 0 980 620" preserveAspectRatio="none"></svg>
+          <div class="osc-tooltip" id="oscTooltip" hidden></div>
+        </div>
+      </main>
+    </div>
+    <div class="osc-statusbar"><span>☰</span><span>?</span><span>▤</span><span>↦</span><strong id="oscStatusCount">—</strong><span>|</span><strong id="oscStatusSelected">1</strong></div>
+  </div>
 </div>
+
+
 
 
 <script>
